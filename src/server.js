@@ -9,6 +9,7 @@ import { prisma } from "./config/database.js";
 import authRoutes from "./routes/auth.js";
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 2000;
 

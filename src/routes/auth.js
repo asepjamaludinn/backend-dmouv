@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import multer from "multer";
 import { prisma } from "../config/database.js";
 import { authenticateToken } from "../middleware/auth.js";
 import {
@@ -8,9 +9,38 @@ import {
   loginValidation,
   validateRequest,
 } from "../utils/validation.js";
-import { validateProfilePictUrl, hashResetToken } from "../utils/guard.js";
+import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
+import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  const extname = allowedTypes.test(file.originalname.toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error("Only image files (jpeg, jpg, png, gif, webp) are allowed"));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: fileFilter,
+});
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -172,9 +202,6 @@ router.post("/forgot-password", async (req, res) => {
       where: { id: user.id },
       data: {
         password: hashedPassword,
-
-        resetToken: null,
-        tokenExpires: null,
       },
     });
 
@@ -184,82 +211,6 @@ router.post("/forgot-password", async (req, res) => {
     });
   } catch (error) {
     console.error("Forgot password error:", error);
-    res.status(500).json({
-      error: "Password reset failed",
-      message: "An error occurred while resetting your password",
-    });
-  }
-});
-
-// @route   POST /api/auth/reset-password
-// @desc    Reset password with token (legacy endpoint)
-// @access  Public
-router.post("/reset-password", async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        error: "Missing required fields",
-        message: "Token and new password are required",
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        error: "Password too weak",
-        message: "Password must be at least 8 characters long",
-      });
-    }
-
-    // Verify JWT token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (error) {
-      return res.status(400).json({
-        error: "Invalid token",
-        message: "Reset token is invalid or expired",
-      });
-    }
-
-    const hashedToken = hashResetToken(token);
-
-    const user = await prisma.user.findFirst({
-      where: {
-        id: decoded.userId,
-        resetToken: hashedToken,
-        tokenExpires: {
-          gt: new Date(),
-        },
-      },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        error: "Invalid token",
-        message: "Reset token is invalid or expired",
-      });
-    }
-
-    // Hash new password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        resetToken: null,
-        tokenExpires: null,
-      },
-    });
-
-    res.json({
-      message: "Password reset successful",
-    });
-  } catch (error) {
-    console.error("Reset password error:", error);
     res.status(500).json({
       error: "Password reset failed",
       message: "An error occurred while resetting your password",
@@ -303,23 +254,12 @@ router.get("/profile", authenticateToken, async (req, res) => {
 });
 
 // @route   PUT /api/auth/profile
-// @desc    Update user profile
+// @desc    Update user profile (password only)
 // @access  Private
 router.put("/profile", authenticateToken, async (req, res) => {
   try {
-    const { profilePict, password } = req.body;
+    const { password } = req.body;
     const updateData = {};
-
-    if (profilePict !== undefined) {
-      if (!validateProfilePictUrl(profilePict)) {
-        return res.status(400).json({
-          error: "Invalid profile picture URL",
-          message:
-            "Profile picture must be a valid image URL (jpg, jpeg, png, gif, webp) and under 500 characters",
-        });
-      }
-      updateData.profilePict = profilePict;
-    }
 
     if (password) {
       if (password.length < 8) {
@@ -332,6 +272,11 @@ router.put("/profile", authenticateToken, async (req, res) => {
       // Hash new password
       const saltRounds = 12;
       updateData.password = await bcrypt.hash(password, saltRounds);
+    } else {
+      return res.status(400).json({
+        error: "No data to update",
+        message: "Password is required for profile update",
+      });
     }
 
     const updatedUser = await prisma.user.update({
@@ -358,6 +303,105 @@ router.put("/profile", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// @route   POST /api/auth/upload-profile-picture
+// @desc    Upload user profile picture
+// @access  Private
+router.post(
+  "/upload-profile-picture",
+  authenticateToken,
+  upload.single("profilePict"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: "No file uploaded",
+          message: "Please select an image file to upload",
+        });
+      }
+
+      const metadata = await sharp(req.file.buffer).metadata();
+      const maxWidth = 2048;
+      const maxHeight = 2048;
+
+      if (metadata.width > maxWidth || metadata.height > maxHeight) {
+        return res.status(400).json({
+          error: "Image too large",
+          message: `Image dimensions must not exceed ${maxWidth}x${maxHeight} pixels. Current: ${metadata.width}x${metadata.height}`,
+        });
+      }
+
+      const fileExtension = req.file.originalname.split(".").pop();
+      const fileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = fileName;
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { profilePict: true },
+      });
+
+      if (user?.profilePict) {
+        const oldFileName = user.profilePict.split("/").pop();
+        const oldFilePath = `profile-pictures/${oldFileName}`;
+
+        await supabase.storage.from("profile-pictures").remove([oldFilePath]);
+      }
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("profile-pictures")
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Supabase upload error:", uploadError);
+        return res.status(500).json({
+          error: "Upload failed",
+          message: "Failed to upload image to storage",
+        });
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(filePath);
+
+      const fileUrl = urlData.publicUrl;
+
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: { profilePict: fileUrl },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          profilePict: true,
+          updatedAt: true,
+        },
+      });
+
+      res.json({
+        message: "Profile picture uploaded successfully",
+        user: updatedUser,
+        imageUrl: fileUrl,
+      });
+    } catch (error) {
+      console.error("Upload profile picture error:", error);
+
+      if (error.message.includes("Only image files")) {
+        return res.status(400).json({
+          error: "Invalid file type",
+          message: error.message,
+        });
+      }
+
+      res.status(500).json({
+        error: "Upload failed",
+        message: "An error occurred while uploading your profile picture",
+      });
+    }
+  }
+);
 
 // @route   POST /api/auth/logout
 // @desc    Logout user (client-side token removal)
