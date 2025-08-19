@@ -258,7 +258,7 @@ router.get("/profile", authenticateToken, async (req, res) => {
 // @access  Private
 router.put("/profile", authenticateToken, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, confirmPassword } = req.body;
     const updateData = {};
 
     if (username) {
@@ -291,6 +291,20 @@ router.put("/profile", authenticateToken, async (req, res) => {
         return res.status(400).json({
           error: "Password too weak",
           message: "Password must be at least 8 characters long",
+        });
+      }
+
+      if (!confirmPassword) {
+        return res.status(400).json({
+          error: "Password confirmation required",
+          message: "Please confirm your new password",
+        });
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).json({
+          error: "Passwords do not match",
+          message: "Password and confirm password must be identical",
         });
       }
 
