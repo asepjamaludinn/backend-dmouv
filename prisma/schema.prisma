@@ -104,11 +104,6 @@ model NotificationRead {
   @@map("notification_reads")
 }
 
-enum DeviceType {
-  light
-  camera
-}
-
 enum DeviceStatus {
   online
   offline
@@ -120,7 +115,6 @@ enum TriggerType {
   motion_detected
   manual
   scheduled
-  system
 }
 
 enum LightStatus {
