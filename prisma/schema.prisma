@@ -30,8 +30,6 @@ model User {
 
 model Device {
   id           String       @id @default(uuid()) @db.Uuid
-  deviceName   String       @map("device_name") @db.VarChar(100)
-  deviceType   DeviceType   @default(camera) @map("device_type")
   status       DeviceStatus @default(offline)
   ipAddress    String       @map("ip_address") @db.VarChar(50)
   wifiSsid     String       @map("wifi_ssid") @db.VarChar(100)

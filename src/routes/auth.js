@@ -254,12 +254,37 @@ router.get("/profile", authenticateToken, async (req, res) => {
 });
 
 // @route   PUT /api/auth/profile
-// @desc    Update user profile (password only)
+// @desc    Update user profile (username & password )
 // @access  Private
 router.put("/profile", authenticateToken, async (req, res) => {
   try {
-    const { password } = req.body;
+    const { username, password } = req.body;
     const updateData = {};
+
+    if (username) {
+      if (username.length < 3) {
+        return res.status(400).json({
+          error: "Username too short",
+          message: "Username must be at least 3 characters long",
+        });
+      }
+
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          username,
+          NOT: { id: req.user.id },
+        },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          error: "Username already taken",
+          message: "This username is already in use by another user",
+        });
+      }
+
+      updateData.username = username;
+    }
 
     if (password) {
       if (password.length < 8) {
@@ -269,13 +294,13 @@ router.put("/profile", authenticateToken, async (req, res) => {
         });
       }
 
-      // Hash new password
       const saltRounds = 12;
       updateData.password = await bcrypt.hash(password, saltRounds);
-    } else {
+    }
+    if (!username && !password) {
       return res.status(400).json({
         error: "No data to update",
-        message: "Password is required for profile update",
+        message: "Username or password is required for profile update",
       });
     }
 
