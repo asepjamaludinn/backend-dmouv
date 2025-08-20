@@ -1,3 +1,4 @@
+// src/services/socket.js
 import { Server } from "socket.io";
 import { prisma } from "../config/database.js";
 
@@ -42,6 +43,15 @@ class RealtimeService {
         } catch (error) {
           console.error("Device status update error:", error);
           socket.emit("error", { message: "Failed to update device status" });
+        }
+      });
+
+      // --- ADDED: Handler untuk motion_cleared ---
+      socket.on("motion_cleared", async (data) => {
+        try {
+          await this.handleMotionCleared(data);
+        } catch (error) {
+          console.error("Motion cleared error:", error);
         }
       });
 
@@ -116,8 +126,8 @@ class RealtimeService {
         const setting = device.setting;
         if (!setting.scheduleOnTime || !setting.scheduleOffTime) continue;
 
-        const onTime = setting.scheduleOnTime.toTimeString().slice(0, 5);
-        const offTime = setting.scheduleOffTime.toTimeString().slice(0, 5);
+        const onTime = setting.scheduleOnTime;
+        const offTime = setting.scheduleOffTime;
 
         if (currentTime === onTime) {
           await this.executeScheduledAction(device, "turn_on");
@@ -132,8 +142,26 @@ class RealtimeService {
 
   async executeScheduledAction(device, action) {
     try {
-      const lightStatus = action === "turn_on" ? "on" : "off";
-      const lightAction = action === "turn_on" ? "turned_on" : "turned_off";
+      const isLamp = device.deviceTypes.includes("lamp");
+      const isFan = device.deviceTypes.includes("fan");
+
+      const lightStatus = isLamp
+        ? action === "turn_on"
+          ? "on"
+          : "off"
+        : "off";
+      const lightAction = isLamp
+        ? action === "turn_on"
+          ? "turned_on"
+          : "turned_off"
+        : "turned_off";
+
+      const fanStatus = isFan ? (action === "turn_on" ? "on" : "off") : "off";
+      const fanAction = isFan
+        ? action === "turn_on"
+          ? "turned_on"
+          : "turned_off"
+        : "turned_off";
 
       await prisma.sensorHistory.create({
         data: {
@@ -141,6 +169,8 @@ class RealtimeService {
           triggerType: "scheduled",
           lightStatus: lightStatus,
           lightAction: lightAction,
+          fanStatus: fanStatus,
+          fanAction: fanAction,
           detectedAt: new Date(),
         },
       });
@@ -150,7 +180,10 @@ class RealtimeService {
           deviceId: device.id,
           type: "scheduled_reminder",
           title: "Scheduled Action",
-          message: `${device.deviceName} ${lightAction} by schedule`,
+          message: `${device.deviceName} ${action.replace(
+            "_",
+            " "
+          )} by schedule`,
           sentAt: new Date(),
         },
       });
@@ -182,6 +215,93 @@ class RealtimeService {
     console.log(" Database polling started (every 5 seconds)");
   }
 
+  async handleDeviceControl(data, deviceType) {
+    const { deviceId, action, ipAddress } = data;
+
+    try {
+      let targetDevice;
+
+      if (deviceId) {
+        targetDevice = await prisma.device.findUnique({
+          where: { id: deviceId, deviceTypes: { has: deviceType } },
+          include: { setting: true },
+        });
+      } else if (ipAddress) {
+        targetDevice = await prisma.device.findFirst({
+          where: {
+            ipAddress: ipAddress,
+            deviceTypes: { has: deviceType },
+          },
+          include: { setting: true },
+        });
+      }
+
+      if (!targetDevice) {
+        throw new Error(`${deviceType} device not found`);
+      }
+
+      const lightStatus =
+        deviceType === "lamp" ? (action === "turn_on" ? "on" : "off") : "off";
+      const lightAction =
+        deviceType === "lamp"
+          ? action === "turn_on"
+            ? "turned_on"
+            : "turned_off"
+          : "turned_off";
+      const fanStatus =
+        deviceType === "fan" ? (action === "turn_on" ? "on" : "off") : "off";
+      const fanAction =
+        deviceType === "fan"
+          ? action === "turn_on"
+            ? "turned_on"
+            : "turned_off"
+          : "turned_off";
+
+      const sensorHistory = await prisma.sensorHistory.create({
+        data: {
+          deviceId: targetDevice.id,
+          triggerType: "manual",
+          lightStatus: lightStatus,
+          lightAction: lightAction,
+          fanStatus: fanStatus,
+          fanAction: fanAction,
+          detectedAt: new Date(),
+        },
+      });
+
+      const notification = await prisma.notification.create({
+        data: {
+          deviceId: targetDevice.id,
+          type: "light_status",
+          title: `${
+            deviceType.charAt(0).toUpperCase() + deviceType.slice(1)
+          } Control`,
+          message: `${targetDevice.deviceName} ${action.replace(
+            "_",
+            " "
+          )} manually`,
+          sentAt: new Date(),
+        },
+      });
+
+      this.io.emit(`${deviceType}_control_response`, {
+        deviceId: targetDevice.id,
+        deviceName: targetDevice.deviceName,
+        action,
+        status: deviceType === "lamp" ? lightStatus : fanStatus,
+        timestamp: new Date(),
+      });
+
+      console.log(
+        `${deviceType} control executed: ${targetDevice.deviceName} ${action}`
+      );
+      return { device: targetDevice, sensorHistory, notification };
+    } catch (error) {
+      console.error(`Error handling ${deviceType} control:`, error);
+      throw error;
+    }
+  }
+
   async handleMotionDetection(data) {
     const { deviceId, detectedAt = new Date() } = data;
 
@@ -203,78 +323,64 @@ class RealtimeService {
       });
 
       const results = [];
+      const activatedDevices = [];
 
       for (const device of pairedDevices) {
-        let lightAction = "turned_on";
-        let lightStatus = "on";
+        let lightAction = "no_action";
+        let lightStatus = "off";
+        let fanAction = "no_action";
+        let fanStatus = "off";
 
-        if (device.setting) {
-          const settings = device.setting;
-          const now = new Date();
-          const currentTime = now.toTimeString().slice(0, 8);
+        if (device.setting?.autoModeEnabled) {
+          const isLamp = device.deviceTypes.includes("lamp");
+          const isFan = device.deviceTypes.includes("fan");
 
-          if (settings.autoModeEnabled) {
-            if (
-              settings.scheduleEnabled &&
-              settings.scheduleOnTime &&
-              settings.scheduleOffTime
-            ) {
-              const onTime = settings.scheduleOnTime.toTimeString().slice(0, 8);
-              const offTime = settings.scheduleOffTime
-                .toTimeString()
-                .slice(0, 8);
+          if (isLamp) {
+            lightAction = "turned_on";
+            lightStatus = "on";
+          }
+          if (isFan) {
+            fanAction = "turned_on";
+            fanStatus = "on";
+          }
 
-              if (onTime <= offTime) {
-                if (currentTime >= onTime && currentTime <= offTime) {
-                  lightAction = "turned_on";
-                  lightStatus = "on";
-                } else {
-                  lightAction = "no_action";
-                  lightStatus = "off";
-                }
-              } else {
-                if (currentTime >= onTime || currentTime <= offTime) {
-                  lightAction = "turned_on";
-                  lightStatus = "on";
-                } else {
-                  lightAction = "no_action";
-                  lightStatus = "off";
-                }
-              }
-            } else {
-              lightAction = "turned_on";
-              lightStatus = "on";
-            }
-          } else {
-            lightAction = "no_action";
-            lightStatus = "off";
+          if (isLamp || isFan) {
+            activatedDevices.push({ id: device.id, name: device.deviceName });
           }
         }
 
-        const sensorHistory = await prisma.sensorHistory.create({
+        await prisma.sensorHistory.create({
           data: {
             deviceId: device.id,
             triggerType: "motion_detected",
             lightStatus: lightStatus,
             lightAction: lightAction,
+            fanStatus: fanStatus,
+            fanAction: fanAction,
             detectedAt: detectedAt,
           },
         });
 
-        results.push({ device, sensorHistory, lightAction, lightStatus });
+        results.push({
+          device,
+          lightAction,
+          lightStatus,
+          fanAction,
+          fanStatus,
+        });
       }
 
-      const notification = await prisma.notification.create({
-        data: {
-          deviceId: deviceId,
-          type: "motion_detected",
-          title: "Motion Detected",
-          message: `Motion detected - ${
-            results.filter((r) => r.lightAction === "turned_on").length
-          } device(s) activated`,
-          sentAt: new Date(),
-        },
-      });
+      if (activatedDevices.length > 0) {
+        await prisma.notification.create({
+          data: {
+            deviceId: deviceId,
+            type: "motion_detected",
+            title: "Motion Detected",
+            message: `Motion detected - ${activatedDevices.length} device(s) activated`,
+            sentAt: new Date(),
+          },
+        });
+      }
 
       this.io.emit("motion_detected_sync", {
         triggerDeviceId: deviceId,
@@ -283,6 +389,8 @@ class RealtimeService {
           deviceName: r.device.deviceName,
           lightStatus: r.lightStatus,
           lightAction: r.lightAction,
+          fanStatus: r.fanStatus,
+          fanAction: r.fanAction,
         })),
         detectedAt: detectedAt,
       });
@@ -292,9 +400,90 @@ class RealtimeService {
         results.length,
         "devices"
       );
-      return { results, notification };
+      return {
+        results,
+        notification:
+          activatedDevices.length > 0
+            ? await prisma.notification.findFirst({
+                where: { deviceId: deviceId, type: "motion_detected" },
+                orderBy: { sentAt: "desc" },
+              })
+            : null,
+      };
     } catch (error) {
       console.error("Error handling motion detection:", error);
+      throw error;
+    }
+  }
+
+  async handleMotionCleared(data) {
+    const { deviceId, clearedAt = new Date() } = data;
+
+    try {
+      const triggerDevice = await prisma.device.findUnique({
+        where: { id: deviceId },
+        include: { setting: true },
+      });
+
+      if (!triggerDevice) {
+        throw new Error("Device not found");
+      }
+
+      const pairedDevices = await prisma.device.findMany({
+        where: {
+          ipAddress: triggerDevice.ipAddress,
+        },
+        include: { setting: true },
+      });
+
+      const results = [];
+
+      for (const device of pairedDevices) {
+        // Logika untuk mematikan perangkat jika mode otomatis aktif
+        if (device.setting?.autoModeEnabled) {
+          const isLamp = device.deviceTypes.includes("lamp");
+          const isFan = device.deviceTypes.includes("fan");
+
+          if (isLamp) {
+            await this.handleDeviceControl(
+              { deviceId: device.id, action: "turn_off" },
+              "lamp"
+            );
+          }
+          if (isFan) {
+            await this.handleDeviceControl(
+              { deviceId: device.id, action: "turn_off" },
+              "fan"
+            );
+          }
+
+          results.push({ device, status: "off" });
+        }
+      }
+
+      if (results.length > 0) {
+        this.io.emit("motion_cleared_sync", {
+          triggerDeviceId: deviceId,
+          pairedDevices: results.map((r) => ({
+            deviceId: r.device.id,
+            deviceName: r.device.deviceName,
+            status: r.status,
+          })),
+          clearedAt: clearedAt,
+        });
+
+        console.log(
+          "Synchronized motion cleared processed:",
+          results.length,
+          "devices turned off"
+        );
+      } else {
+        console.log(
+          "Motion cleared event received, but no devices to turn off."
+        );
+      }
+    } catch (error) {
+      console.error("Error handling motion cleared:", error);
       throw error;
     }
   }
@@ -317,14 +506,21 @@ class RealtimeService {
       const lightAction = action === "turn_on" ? "turned_on" : "turned_off";
 
       for (const device of pairedDevices) {
+        const isLamp = device.deviceTypes.includes("lamp");
+        const isFan = device.deviceTypes.includes("fan");
+
+        const historyData = {
+          deviceId: device.id,
+          triggerType: triggeredBy,
+          detectedAt: new Date(),
+          lightStatus: isLamp ? lightStatus : "off",
+          lightAction: isLamp ? lightAction : "turned_off",
+          fanStatus: isFan ? lightStatus : "off",
+          fanAction: isFan ? lightAction : "turned_off",
+        };
+
         const sensorHistory = await prisma.sensorHistory.create({
-          data: {
-            deviceId: device.id,
-            triggerType: triggeredBy,
-            lightStatus: lightStatus,
-            lightAction: lightAction,
-            detectedAt: new Date(),
-          },
+          data: historyData,
         });
 
         results.push({ device, sensorHistory });
@@ -355,6 +551,80 @@ class RealtimeService {
     } catch (error) {
       console.error("Error handling synchronized control:", error);
       throw error;
+    }
+  }
+
+  async sendInitialData(socket) {
+    try {
+      const devices = await prisma.device.findMany({
+        include: { setting: true },
+      });
+
+      const recentSensorHistory = await prisma.sensorHistory.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        include: { device: true },
+      });
+
+      socket.emit("initial_data", {
+        devices,
+        recentSensorHistory,
+      });
+    } catch (error) {
+      console.log("Error sending initial data:", error);
+    }
+  }
+
+  async updateDeviceStatus(deviceId, status) {
+    try {
+      const updatedDevice = await prisma.device.update({
+        where: { id: deviceId },
+        data: {
+          status,
+          lastSeen: new Date(),
+        },
+        include: { setting: true },
+      });
+
+      this.io.emit("device_status_updated", updatedDevice);
+      return updatedDevice;
+    } catch (error) {
+      console.error("Error updating device status:", error);
+      throw error;
+    }
+  }
+
+  async checkForChanges() {
+    try {
+      const devices = await prisma.device.findMany({
+        where: {
+          updatedAt: {
+            gt: this.lastChecked.devices,
+          },
+        },
+        include: { setting: true },
+      });
+
+      if (devices.length > 0) {
+        this.io.emit("devices_updated", devices);
+        this.lastChecked.devices = new Date();
+      }
+
+      const sensorHistory = await prisma.sensorHistory.findMany({
+        where: {
+          createdAt: {
+            gt: this.lastChecked.sensorHistory,
+          },
+        },
+        include: { device: true },
+      });
+
+      if (sensorHistory.length > 0) {
+        this.io.emit("sensor_history_updated", sensorHistory);
+        this.lastChecked.sensorHistory = new Date();
+      }
+    } catch (error) {
+      console.error("Error checking for changes:", error);
     }
   }
 

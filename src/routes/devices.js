@@ -1,3 +1,5 @@
+// src/routes/devices.js (Modified)
+
 import express from "express";
 import { body } from "express-validator";
 import { prisma } from "../config/database.js";
@@ -18,7 +20,7 @@ const deviceValidation = [
 ];
 
 // @route   POST /api/devices/onboarding
-// @desc    Device onboarding - automatically creates lamp and fan devices
+// @desc    Device onboarding
 // @access  Private
 router.post(
   "/onboarding",
@@ -29,67 +31,69 @@ router.post(
     try {
       const { ip_address, wifi_ssid, wifi_password } = req.body;
 
-      const existingDevice = await prisma.device.findFirst({
+      const existingDevices = await prisma.device.findMany({
         where: { ipAddress: ip_address },
       });
 
-      if (existingDevice) {
+      if (existingDevices.length > 0) {
         return res.status(400).json({
           error: "Device already exists",
-          message: "A device with this IP address is already registered",
+          message: "A device with this IP address is already registered.",
         });
       }
 
-      const devices = [];
-
       const lampDevice = await prisma.device.create({
         data: {
-          deviceName: "lamp",
+          deviceName: `IoT Lamp ${ip_address}`,
+          deviceTypes: ["lamp"],
           ipAddress: ip_address,
           wifiSsid: wifi_ssid,
           wifiPassword: wifi_password,
+        },
+      });
+
+      await prisma.setting.create({
+        data: {
+          deviceId: lampDevice.id,
+          scheduleEnabled: false,
+          autoModeEnabled: true,
+          scheduleOnTime: "18:00",
+          scheduleOffTime: "06:00",
         },
       });
 
       const fanDevice = await prisma.device.create({
         data: {
-          deviceName: "fan",
+          deviceName: `IoT Fan ${ip_address}`,
+          deviceTypes: ["fan"],
           ipAddress: ip_address,
           wifiSsid: wifi_ssid,
           wifiPassword: wifi_password,
         },
       });
 
-      devices.push(lampDevice, fanDevice);
-
-      for (const device of devices) {
-        await prisma.setting.create({
-          data: {
-            deviceId: device.id,
-            scheduleEnabled: false,
-            autoModeEnabled: true,
-            scheduleOnTime: new Date("1970-01-01T18:00:00Z"),
-            scheduleOffTime: new Date("1970-01-01T06:00:00Z"),
-          },
-        });
-      }
-
-      const devicesWithSettings = await prisma.device.findMany({
-        where: {
-          id: {
-            in: devices.map((d) => d.id),
-          },
+      await prisma.setting.create({
+        data: {
+          deviceId: fanDevice.id,
+          scheduleEnabled: false,
+          autoModeEnabled: true,
+          scheduleOnTime: null,
+          scheduleOffTime: null,
         },
+      });
+
+      const onboardedDevices = await prisma.device.findMany({
+        where: { ipAddress: ip_address },
         include: { setting: true },
       });
 
-      devicesWithSettings.forEach((device) => {
-        realtimeService.broadcast("device_added", device);
+      onboardedDevices.forEach((device) => {
+        realtimeService.io?.emit("device_added", device);
       });
 
       res.status(201).json({
         message: "Devices onboarded successfully",
-        devices: devicesWithSettings,
+        devices: onboardedDevices,
       });
     } catch (error) {
       console.error("Device onboarding error:", error);
