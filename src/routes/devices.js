@@ -1,5 +1,3 @@
-// src/routes/devices.js (Modified)
-
 import express from "express";
 import { body } from "express-validator";
 import { prisma } from "../config/database.js";
@@ -20,7 +18,7 @@ const deviceValidation = [
 ];
 
 // @route   POST /api/devices/onboarding
-// @desc    Device onboarding
+// @desc    Device onboarding, now supports shared access.
 // @access  Private
 router.post(
   "/onboarding",
@@ -33,12 +31,17 @@ router.post(
 
       const existingDevices = await prisma.device.findMany({
         where: { ipAddress: ip_address },
+        include: { setting: true },
       });
 
       if (existingDevices.length > 0) {
-        return res.status(400).json({
-          error: "Device already exists",
-          message: "A device with this IP address is already registered.",
+        console.log(
+          `Device with IP ${ip_address} already exists. Returning existing devices.`
+        );
+
+        return res.status(200).json({
+          message: "Devices already registered and are now accessible.",
+          devices: existingDevices,
         });
       }
 
@@ -57,8 +60,8 @@ router.post(
           deviceId: lampDevice.id,
           scheduleEnabled: false,
           autoModeEnabled: true,
-          scheduleOnTime: "18:00",
-          scheduleOffTime: "06:00",
+          scheduleOnTime: null,
+          scheduleOffTime: null,
         },
       });
 
