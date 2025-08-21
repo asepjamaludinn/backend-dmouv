@@ -1,4 +1,3 @@
-// src/services/socket.js
 import { Server } from "socket.io";
 import { prisma } from "../config/database.js";
 
@@ -46,7 +45,6 @@ class RealtimeService {
         }
       });
 
-      // --- ADDED: Handler untuk motion_cleared ---
       socket.on("motion_cleared", async (data) => {
         try {
           await this.handleMotionCleared(data);
@@ -110,6 +108,7 @@ class RealtimeService {
     try {
       const now = new Date();
       const currentTime = now.toTimeString().slice(0, 5);
+      const currentDay = now.toLocaleString("en-US", { weekday: "short" });
 
       const devicesWithSchedule = await prisma.device.findMany({
         include: {
@@ -124,7 +123,13 @@ class RealtimeService {
 
       for (const device of devicesWithSchedule) {
         const setting = device.setting;
-        if (!setting.scheduleOnTime || !setting.scheduleOffTime) continue;
+
+        if (
+          !setting.scheduledDays?.includes(currentDay) ||
+          (!setting.scheduleOnTime && !setting.scheduleOffTime)
+        ) {
+          continue;
+        }
 
         const onTime = setting.scheduleOnTime;
         const offTime = setting.scheduleOffTime;
@@ -439,7 +444,6 @@ class RealtimeService {
       const results = [];
 
       for (const device of pairedDevices) {
-        // Logika untuk mematikan perangkat jika mode otomatis aktif
         if (device.setting?.autoModeEnabled) {
           const isLamp = device.deviceTypes.includes("lamp");
           const isFan = device.deviceTypes.includes("fan");

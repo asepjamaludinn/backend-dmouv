@@ -53,6 +53,7 @@ model Setting {
   autoModeEnabled Boolean  @default(true) @map("auto_mode_enabled")
   scheduleOnTime  String?  @map("schedule_on_time") @db.VarChar(5)
   scheduleOffTime String?  @map("schedule_off_time") @db.VarChar(5)
+  scheduledDays   String[] @map("scheduled_days")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -61,7 +62,7 @@ model Setting {
   @@map("settings")
 }
 
-model SensorHistory {
+model History {
   id          String      @id @default(uuid()) @db.Uuid
   deviceId    String      @map("device_id") @db.Uuid
   triggerType TriggerType @map("trigger_type")
@@ -75,7 +76,7 @@ model SensorHistory {
 
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
-  @@map("sensor_history")
+  @@map("history")
 }
 
 model Notification {
