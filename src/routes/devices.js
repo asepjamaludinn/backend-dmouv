@@ -3,7 +3,7 @@ import { body } from "express-validator";
 import { prisma } from "../config/database.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
-import realtimeService from "../services/socket.js";
+import realtimeService from "../services/realtime.js";
 
 const router = express.Router();
 

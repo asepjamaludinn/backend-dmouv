@@ -27,6 +27,7 @@
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.14.0",
     "multer": "^2.0.2",
     "sharp": "^0.34.3",
     "socket.io": "^4.8.1",
