@@ -76,7 +76,8 @@ export const uploadProfilePicture = async (req, res, next) => {
     }
     const userId = req.user.id;
     const file = req.file;
-    const result = await authService.uploadProfilePic(userId, file);
+    const token = req.token;
+    const result = await authService.uploadProfilePic(userId, file, token);
     res.status(200).json({
       message: "Profile picture uploaded successfully",
       ...result,

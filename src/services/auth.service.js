@@ -2,11 +2,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import { prisma } from "../config/database.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const generateToken = (userId) => {
@@ -123,7 +124,25 @@ export const updateUserProfile = async (userId, updateData) => {
   return updatedUser;
 };
 
-export const uploadProfilePic = async (userId, file) => {
+export const uploadProfilePic = async (userId, file, token) => {
+  try {
+    const metadata = await sharp(file.buffer).metadata();
+    const maxWidth = 2048;
+    const maxHeight = 2048;
+
+    if (metadata.width > maxWidth || metadata.height > maxHeight) {
+      const error = new Error(
+        `Image dimensions must not exceed ${maxWidth}x${maxHeight} pixels.`
+      );
+      error.status = 400;
+      throw error;
+    }
+  } catch (e) {
+    const error = new Error(e.message || "Invalid image file provided.");
+    error.status = 400;
+    throw error;
+  }
+
   const fileExtension = file.originalname.split(".").pop();
   const fileName = `${uuidv4()}.${fileExtension}`;
 
@@ -133,9 +152,8 @@ export const uploadProfilePic = async (userId, file) => {
   });
   if (user?.profilePict) {
     const oldFileName = user.profilePict.split("/").pop();
-    await supabase.storage
-      .from("profile-pictures")
-      .remove([`profile-pictures/${oldFileName}`]);
+    const oldFilePath = `${oldFileName}`;
+    await supabase.storage.from("profile-pictures").remove([oldFilePath]);
   }
 
   const { error: uploadError } = await supabase.storage
@@ -143,6 +161,7 @@ export const uploadProfilePic = async (userId, file) => {
     .upload(fileName, file.buffer, { contentType: file.mimetype });
 
   if (uploadError) {
+    console.error("Supabase Upload Error:", uploadError.message);
     throw new Error("Failed to upload image to storage");
   }
 
