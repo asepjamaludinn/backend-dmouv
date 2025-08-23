@@ -96,36 +96,18 @@ export const getHistoryValidation = [
     .isIn(["asc", "desc"])
     .withMessage("sortOrder must be 'asc' or 'desc'"),
 ];
-
 const timeFormatValidation = (value) => {
-  if (value === null || value === undefined) {
-    return true;
-  }
   if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value)) {
     throw new Error("Invalid time format. Must be HH:mm (e.g., 08:00)");
   }
   return true;
 };
 
-const daysValidation = (value) => {
-  if (value === null || value === undefined) {
-    return true;
-  }
-  const validDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  if (!Array.isArray(value)) {
-    throw new Error("scheduledDays must be an array");
-  }
-  const invalidDays = value.filter((day) => !validDays.includes(day));
-  if (invalidDays.length > 0) {
-    throw new Error(`Invalid days found: ${invalidDays.join(", ")}`);
-  }
-  return true;
-};
+const validDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export const deviceIdValidation = [
   param("deviceId").isUUID().withMessage("Invalid deviceId format"),
 ];
-
 export const updateSettingValidation = [
   body("scheduleEnabled")
     .optional()
@@ -135,7 +117,32 @@ export const updateSettingValidation = [
     .optional()
     .isBoolean()
     .withMessage("autoModeEnabled must be a boolean"),
-  body("scheduleOnTime").optional().custom(timeFormatValidation),
-  body("scheduleOffTime").optional().custom(timeFormatValidation),
-  body("scheduledDays").optional().custom(daysValidation),
+];
+
+export const deviceActionValidation = [
+  body("action")
+    .notEmpty()
+    .withMessage("Action is required")
+    .isIn(["turn_on", "turn_off"])
+    .withMessage("Action must be either 'turn_on' or 'turn_off'"),
+];    
+
+export const scheduleValidation = [
+  body("day")
+    .isIn(validDays)
+    .withMessage(`Day must be one of: ${validDays.join(", ")}`),
+  body("onTime")
+    .notEmpty()
+    .withMessage("onTime is required")
+    .custom(timeFormatValidation),
+  body("offTime")
+    .notEmpty()
+    .withMessage("offTime is required")
+    .custom(timeFormatValidation),
+];
+
+export const dayParamValidation = [
+  param("day")
+    .isIn(validDays)
+    .withMessage(`Day parameter must be one of: ${validDays.join(", ")}`),
 ];

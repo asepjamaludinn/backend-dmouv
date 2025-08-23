@@ -49,17 +49,28 @@ model Device {
 model Setting {
   id              String   @id @default(uuid()) @db.Uuid
   deviceId        String   @unique @map("device_id") @db.Uuid
-  scheduleEnabled Boolean  @default(false) @map("schedule_enabled")
   autoModeEnabled Boolean  @default(true) @map("auto_mode_enabled")
-  scheduleOnTime  String?  @map("schedule_on_time") @db.VarChar(5)
-  scheduleOffTime String?  @map("schedule_off_time") @db.VarChar(5)
-  scheduledDays   String[] @map("scheduled_days")
+  scheduleEnabled Boolean  @default(false) @map("schedule_enabled")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  device    Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  schedules Schedule[]
 
   @@map("settings")
+}
+
+model Schedule {
+  id        String @id @default(uuid()) @db.Uuid
+  settingId String @map("setting_id") @db.Uuid
+  day       String @db.VarChar(3)
+  onTime    String @map("on_time") @db.VarChar(5)
+  offTime   String @map("off_time") @db.VarChar(5)
+
+  setting Setting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+
+  @@unique([settingId, day])
+  @@map("schedules")
 }
 
 model SensorHistory {
