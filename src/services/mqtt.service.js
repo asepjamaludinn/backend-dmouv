@@ -4,7 +4,7 @@ import * as deviceControlService from "./device.control.service.js";
 let mqttClient = null;
 
 export const initializeMqtt = () => {
-  const brokerUrl = process.env.MQTT_BROKER_URL || "mqtt://localhost";
+  const brokerUrl = process.env.MQTT_BROKER_URL || "mqtt://mosquitto";
   const options = {
     clientId: `server_${Math.random().toString(16).slice(2, 10)}`,
     username: process.env.MQTT_USERNAME,

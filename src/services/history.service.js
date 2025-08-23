@@ -20,7 +20,6 @@ export const getSensorHistory = async (queryParams) => {
   const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
 
-  // 2. Bangun klausa 'where' secara dinamis untuk filter
   const whereClause = {};
   if (deviceId) whereClause.deviceId = deviceId;
   if (triggerType) whereClause.triggerType = triggerType;
