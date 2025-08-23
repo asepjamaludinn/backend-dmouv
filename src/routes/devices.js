@@ -3,7 +3,11 @@
 import express from "express";
 import { authenticateToken } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
-import { deviceOnboardingValidation } from "../utils/validation.js";
+import {
+  deviceOnboardingValidation,
+  deviceIdValidation,
+  deviceActionValidation,
+} from "../utils/validation.js";
 import * as deviceController from "../controllers/device.controller.js";
 
 const router = express.Router();
@@ -17,6 +21,18 @@ router.post(
   deviceOnboardingValidation,
   validateRequest,
   deviceController.onboardDevice
+);
+
+// @route   POST /api/device/:deviceId/action
+// @desc    Manually control a device (turn on/off).
+// @access  Private
+router.post(
+  "/:deviceId/action",
+  authenticateToken,
+  deviceIdValidation,
+  deviceActionValidation,
+  validateRequest,
+  deviceController.controlDevice
 );
 
 export default router;

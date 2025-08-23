@@ -45,8 +45,8 @@ Ikuti langkah-langkah berikut untuk menjalankan proyek ini di lingkungan lokal A
 1.  **Clone Repositori**
 
     ```bash
-    git clone [https://github.com/your-username/dmouv-smart-detection-backend.git](https://github.com/your-username/dmouv-smart-detection-backend.git)
-    cd dmouv-smart-detection-backend
+    git clone [https://github.com/your-username/backend-dmouv.git](https://github.com/your-username/backend-dmouv.git)
+    cd backend-dmouv
     ```
 
 2.  **Install Dependensi**
@@ -130,7 +130,7 @@ Anda bisa menjalankan aplikasi ini dengan dua cara:
 │ ├── routes/ # Definisi endpoint API
 │ ├── services/ # Logika bisnis inti
 │ └── utils/ # Utilitas (validasi)d
-├── .env # Variabel lingkungan (Jangan di-commit!)
+├── .env # Variabel lingkungan
 ├── app.js # Konfigurasi utama Express
 ├── docker-compose.yml # Konfigurasi Docker
 ├── Dockerfile # Definisi image Docker untuk aplikasi

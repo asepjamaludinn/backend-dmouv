@@ -2,38 +2,42 @@ import { prisma } from "../config/database.js";
 import * as deviceControlService from "./device.control.service.js";
 
 let scheduleInterval = null;
-
 const checkScheduledActions = async () => {
   try {
     const now = new Date();
     const currentTime = now.toTimeString().slice(0, 5);
     const currentDay = now.toLocaleString("en-US", { weekday: "short" });
 
-    const devicesWithSchedule = await prisma.device.findMany({
-      where: { setting: { scheduleEnabled: true } },
-      include: { setting: true },
+    const activeSchedules = await prisma.schedule.findMany({
+      where: {
+        day: currentDay,
+        OR: [{ onTime: currentTime }, { offTime: currentTime }],
+        setting: {
+          scheduleEnabled: true,
+        },
+      },
+      include: {
+        setting: {
+          include: {
+            device: true,
+          },
+        },
+      },
     });
 
-    for (const device of devicesWithSchedule) {
-      const setting = device.setting;
-      if (!setting || !setting.scheduledDays?.includes(currentDay)) {
-        continue;
-      }
+    for (const schedule of activeSchedules) {
+      const device = schedule.setting.device;
+      const action = currentTime === schedule.onTime ? "turn_on" : "turn_off";
 
-      if (currentTime === setting.scheduleOnTime) {
-        await deviceControlService.executeDeviceAction(
-          device.id,
-          "turn_on",
-          "scheduled"
-        );
-      }
-      if (currentTime === setting.scheduleOffTime) {
-        await deviceControlService.executeDeviceAction(
-          device.id,
-          "turn_off",
-          "scheduled"
-        );
-      }
+      console.log(
+        `Executing '${action}' for device '${device.deviceName}' based on schedule.`
+      );
+
+      await deviceControlService.executeDeviceAction(
+        device.id,
+        action,
+        "scheduled"
+      );
     }
   } catch (error) {
     console.error("Error in schedule checker:", error);

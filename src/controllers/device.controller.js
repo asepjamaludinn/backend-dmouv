@@ -1,4 +1,5 @@
 import * as deviceService from "../services/device.service.js";
+import * as deviceControlService from "../services/device.control.service.js";
 
 export const onboardDevice = async (req, res, next) => {
   try {
@@ -21,6 +22,26 @@ export const onboardDevice = async (req, res, next) => {
         devices: result.devices,
       });
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const controlDevice = async (req, res, next) => {
+  try {
+    const { deviceId } = req.params;
+    const { action } = req.body;
+
+    const updatedDevice = await deviceControlService.executeDeviceAction(
+      deviceId,
+      action,
+      "manual"
+    );
+
+    res.status(200).json({
+      message: `Device action '${action}' executed successfully.`,
+      device: updatedDevice,
+    });
   } catch (error) {
     next(error);
   }
