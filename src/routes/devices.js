@@ -26,7 +26,7 @@ router.post(
 
 // @route   POST /api/device/:deviceId/action
 // @desc    Manually control a device (turn on/off).
-// @access  Private
+// @access  Private (SUPERUSER ONLY)
 router.post(
   "/:deviceId/action",
   authenticateToken,

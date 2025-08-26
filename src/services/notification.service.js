@@ -61,18 +61,10 @@ export const createNotification = async (deviceId, type, title, message) => {
 };
 
 /**
- * Mendapatkan notifikasi untuk pengguna tertentu dengan paginasi.
+ * Mendapatkan SEMUA notifikasi untuk pengguna tertentu.
  * @param {string} userId - ID pengguna.
- * @param {number} page - Nomor halaman.
- * @param {number} limit - Jumlah item per halaman.
  */
-export const getNotificationsByUserId = async (
-  userId,
-  page = 1,
-  limit = 10
-) => {
-  const skip = (page - 1) * limit;
-
+export const getNotificationsByUserId = async (userId) => {
   const [totalCount, userNotifications] = await prisma.$transaction([
     prisma.notificationRead.count({
       where: { userId },
@@ -91,16 +83,12 @@ export const getNotificationsByUserId = async (
           sentAt: "desc",
         },
       },
-      skip,
-      take: limit,
     }),
   ]);
 
   return {
     totalCount,
     notifications: userNotifications,
-    page,
-    limit,
   };
 };
 
@@ -173,7 +161,6 @@ export const markAllNotificationsAsRead = async (userId) => {
  * @param {string} userId - ID pengguna untuk verifikasi kepemilikan.
  */
 export const deleteNotificationById = async (notificationReadId, userId) => {
-  // Pertama, verifikasi bahwa notifikasi ini memang milik pengguna
   const notificationRead = await prisma.notificationRead.findFirst({
     where: {
       id: notificationReadId,

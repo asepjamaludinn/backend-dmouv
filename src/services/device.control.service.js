@@ -1,6 +1,11 @@
 import { prisma } from "../config/database.js";
 import { io } from "./socket.service.js";
+import { createNotification } from "./notification.service.js";
 
+/**
+ * @param {string} ipAddress
+ * @param {string} status
+ */
 export const updateStatusByIp = async (ipAddress, status) => {
   const updatedDevices = await prisma.device.updateMany({
     where: { ipAddress },
@@ -16,6 +21,9 @@ export const updateStatusByIp = async (ipAddress, status) => {
   }
 };
 
+/**
+ * @param {string} ipAddress
+ */
 export const handleMotionDetection = async (ipAddress) => {
   const devices = await prisma.device.findMany({
     where: { ipAddress, setting: { autoModeEnabled: true } },
@@ -26,6 +34,9 @@ export const handleMotionDetection = async (ipAddress) => {
   }
 };
 
+/**
+ * @param {string} ipAddress
+ */
 export const handleMotionCleared = async (ipAddress) => {
   const devices = await prisma.device.findMany({
     where: { ipAddress, setting: { autoModeEnabled: true } },
@@ -36,41 +47,113 @@ export const handleMotionCleared = async (ipAddress) => {
   }
 };
 
+/**
+ * @param {string} deviceId
+ * @param {string} action
+ * @param {string} triggerType
+ * @returns {Promise<object>}
+ */
 export const executeDeviceAction = async (deviceId, action, triggerType) => {
-  const device = await prisma.device.findUnique({ where: { id: deviceId } });
-  if (!device) throw new Error(`Device with ID ${deviceId} not found.`);
+  let notificationDetails = {
+    type: null,
+    title: null,
+    message: null,
+  };
 
-  const isLamp = device.deviceTypes.includes("lamp");
-  const isFan = device.deviceTypes.includes("fan");
-  const status = action === "turn_on" ? "on" : "off";
-  const statusAction = action === "turn_on" ? "turned_on" : "turned_off";
+  const finalDeviceState = await prisma.$transaction(async (tx) => {
+    const device = await tx.device.findUnique({
+      where: { id: deviceId },
+      include: { setting: true },
+    });
+    if (!device) {
+      console.error(`Device with ID ${deviceId} not found.`);
+      throw new Error(`Device with ID ${deviceId} not found.`);
+    }
 
-  await prisma.sensorHistory.create({
-    data: {
+    const isLamp = device.deviceTypes.includes("lamp");
+    const isFan = device.deviceTypes.includes("fan");
+    const status = action === "turn_on" ? "on" : "off";
+    const statusAction = action === "turn_on" ? "turned_on" : "turned_off";
+
+    await tx.sensorHistory.create({
+      data: {
+        deviceId: device.id,
+        triggerType,
+        lightStatus: isLamp ? status : "off",
+        lightAction: isLamp ? statusAction : "turned_off",
+        fanStatus: isFan ? status : "off",
+        fanAction: isFan ? statusAction : "turned_off",
+        detectedAt: new Date(),
+      },
+    });
+
+    if (triggerType === "manual") {
+      const updatedSettings = await tx.setting.update({
+        where: { deviceId: deviceId },
+        data: {
+          autoModeEnabled: false,
+          scheduleEnabled: false,
+        },
+        include: { device: true },
+      });
+      io?.emit("settings_updated", updatedSettings);
+    }
+
+    const actionText = action === "turn_on" ? "dinyalakan" : "dimatikan";
+
+    switch (triggerType) {
+      case "motion_detected":
+        notificationDetails = {
+          type: "motion_detected",
+          title: "Gerakan Terdeteksi!",
+          message: `Sistem mendeteksi gerakan, ${device.deviceName} telah ${actionText}.`,
+        };
+        break;
+      case "scheduled":
+        notificationDetails = {
+          type: "scheduled_reminder",
+          title: "Jadwal Dijalankan",
+          message: `${device.deviceName} telah ${actionText} secara otomatis sesuai jadwal.`,
+        };
+        break;
+      case "manual":
+        notificationDetails = {
+          type: "device_status_change",
+          title: "Aksi Manual Pengguna",
+          message: `Perangkat ${device.deviceName} telah ${actionText} oleh pengguna. Mode otomatis kini dinonaktifkan.`,
+        };
+        break;
+    }
+
+    io?.emit("device_operational_status_updated", {
       deviceId: device.id,
-      triggerType,
-      lightStatus: isLamp ? status : "off",
-      lightAction: isLamp ? statusAction : "turned_off",
-      fanStatus: isFan ? status : "off",
-      fanAction: isFan ? statusAction : "turned_off",
-      detectedAt: new Date(),
-    },
+      operationalStatus: status,
+    });
+
+    console.log(
+      `Action '${action}' executed for device '${device.deviceName}' triggered by '${triggerType}'`
+    );
+
+    return tx.device.findUnique({
+      where: { id: deviceId },
+      include: { setting: true },
+    });
   });
 
-  // TODO: Buat Notifikasi (jika model Notification sudah siap)
+  if (notificationDetails.title && notificationDetails.type) {
+    try {
+      await createNotification(
+        deviceId,
+        notificationDetails.type,
+        notificationDetails.title,
+        notificationDetails.message
+      );
+    } catch (error) {
+      console.error(
+        `Failed to create notification for device ${deviceId}. Error: ${error.message}`
+      );
+    }
+  }
 
-  await prisma.device.update({
-    where: { id: deviceId },
-    data: { status: triggerType === "manual" ? status : device.status },
-  });
-
-  const updatedDevice = await prisma.device.findUnique({
-    where: { id: deviceId },
-  });
-  io?.emit("device_status_updated", updatedDevice);
-
-  console.log(
-    `Action '${action}' executed for device '${device.deviceName}' triggered by '${triggerType}'`
-  );
-  return updatedDevice;
+  return finalDeviceState;
 };

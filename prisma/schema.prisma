@@ -160,8 +160,6 @@ enum FanAction {
 
 enum NotificationType {
   motion_detected
-  light_status
+  device_status_change
   scheduled_reminder
-  device_offline
-  device_online
 }

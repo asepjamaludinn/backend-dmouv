@@ -3,18 +3,11 @@ import * as notificationService from "../services/notification.service.js";
 export const getNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page, limit } = req.query;
-    const result = await notificationService.getNotificationsByUserId(
-      userId,
-      parseInt(page) || 1,
-      parseInt(limit) || 10
-    );
+    const result = await notificationService.getNotificationsByUserId(userId);
     res.status(200).json({
       message: "Notifications fetched successfully",
       data: result.notifications,
       total: result.totalCount,
-      page: result.page,
-      limit: result.limit,
     });
   } catch (error) {
     next(error);
