@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, authorizeSuperuser } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
 import {
   deviceIdValidation,
@@ -10,13 +10,13 @@ import {
 import * as settingsController from "../controllers/settings.controller.js";
 
 const router = express.Router();
-router.use(authenticateToken);
 
 // @route   GET /api/settings/:deviceId
 // @desc    Get settings and all schedules for a specific device
-// @access  Private
+// @access  Private (User dengan akses)
 router.get(
   "/:deviceId",
+  authenticateToken,
   deviceIdValidation,
   validateRequest,
   settingsController.getSettings
@@ -24,9 +24,11 @@ router.get(
 
 // @route   PATCH /api/settings/:deviceId
 // @desc    Update general settings (autoModeEnabled, scheduleEnabled)
-// @access  Private
+// @access  Private (SUPERUSER ONLY)
 router.patch(
   "/:deviceId",
+  authenticateToken,
+  authorizeSuperuser,
   deviceIdValidation,
   updateSettingValidation,
   validateRequest,
@@ -35,9 +37,11 @@ router.patch(
 
 // @route   POST /api/settings/:deviceId/schedules
 // @desc    Add or update a schedule for a specific day
-// @access  Private
+// @access  Private (SUPERUSER ONLY)
 router.post(
   "/:deviceId/schedules",
+  authenticateToken,
+  authorizeSuperuser,
   deviceIdValidation,
   scheduleValidation,
   validateRequest,
@@ -45,10 +49,12 @@ router.post(
 );
 
 // @route   DELETE /api/settings/:deviceId/schedules/:day
-// @desc    Delete a schedule for a specific day (e.g., /Mon)
-// @access  Private
+// @desc    Delete a schedule for a specific day
+// @access  Private (SUPERUSER ONLY)
 router.delete(
   "/:deviceId/schedules/:day",
+  authenticateToken,
+  authorizeSuperuser,
   deviceIdValidation,
   dayParamValidation,
   validateRequest,

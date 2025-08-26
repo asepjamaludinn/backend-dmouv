@@ -13,7 +13,14 @@ export const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, username: true, email: true, createdAt: true },
+
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
     if (!user) {
@@ -26,4 +33,13 @@ export const authenticateToken = async (req, res, next) => {
   } catch (error) {
     return res.status(403).json({ error: "Invalid or expired token" });
   }
+};
+
+export const authorizeSuperuser = (req, res, next) => {
+  if (req.user?.role !== "SUPERUSER") {
+    return res
+      .status(403)
+      .json({ error: "Forbidden: Super user access required." });
+  }
+  next();
 };

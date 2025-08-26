@@ -1,12 +1,15 @@
 import { prisma } from "../config/database.js";
 import * as deviceControlService from "./device.control.service.js";
+import pkg from "date-fns-tz";
+const { format, utcToZonedTime } = pkg;
 
 let scheduleInterval = null;
 const checkScheduledActions = async () => {
   try {
-    const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5);
-    const currentDay = now.toLocaleString("en-US", { weekday: "short" });
+    const timeZone = "Asia/Jakarta";
+    const nowInWIB = utcToZonedTime(new Date(), timeZone);
+    const currentTime = format(nowInWIB, "HH:mm", { timeZone });
+    const currentDay = format(nowInWIB, "E", { timeZone });
 
     const activeSchedules = await prisma.schedule.findMany({
       where: {

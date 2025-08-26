@@ -47,36 +47,48 @@ export const updateSettingsByDeviceId = async (deviceId, updateData) => {
 export const addOrUpdateScheduleByDevice = async (deviceId, scheduleData) => {
   const { day, onTime, offTime } = scheduleData;
 
-  const setting = await prisma.setting.findUnique({
-    where: { deviceId },
-  });
+  const result = await prisma.$transaction(async (tx) => {
+    const setting = await tx.setting.findUnique({
+      where: { deviceId },
+    });
 
-  if (!setting) {
-    const error = new Error("Settings not found for this device");
-    error.status = 404;
-    throw error;
-  }
+    if (!setting) {
+      const error = new Error("Settings not found for this device");
+      error.status = 404;
+      throw error;
+    }
 
-  const schedule = await prisma.schedule.upsert({
-    where: {
-      settingId_day: {
+    const schedule = await tx.schedule.upsert({
+      where: {
+        settingId_day: {
+          settingId: setting.id,
+          day: day,
+        },
+      },
+      update: {
+        onTime: onTime,
+        offTime: offTime,
+      },
+      create: {
         settingId: setting.id,
         day: day,
+        onTime: onTime,
+        offTime: offTime,
       },
-    },
-    update: {
-      onTime: onTime,
-      offTime: offTime,
-    },
-    create: {
-      settingId: setting.id,
-      day: day,
-      onTime: onTime,
-      offTime: offTime,
-    },
+    });
+
+    const updatedSettings = await tx.setting.update({
+      where: { id: setting.id },
+      data: { scheduleEnabled: true },
+      include: { device: true },
+    });
+
+    io?.emit("settings_updated", updatedSettings);
+
+    return schedule;
   });
 
-  return schedule;
+  return result;
 };
 
 export const deleteScheduleByDay = async (deviceId, day) => {

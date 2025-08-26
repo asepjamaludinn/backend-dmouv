@@ -16,8 +16,8 @@ const generateToken = (userId) => {
   });
 };
 
-export const registerUser = async (userData) => {
-  const { username, email, password } = userData;
+export const createUserByUser = async (userData) => {
+  const { username, email, password, role } = userData;
 
   const existingUser = await prisma.user.findFirst({
     where: { OR: [{ email }, { username }] },
@@ -35,12 +35,11 @@ export const registerUser = async (userData) => {
 
   const hashedPassword = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
-    data: { username, email, password: hashedPassword },
+    data: { username, email, password: hashedPassword, role: role },
     select: { id: true, username: true, email: true, createdAt: true },
   });
 
-  const token = generateToken(user.id);
-  return { user, token };
+  return { user };
 };
 
 export const loginUser = async (credentials) => {

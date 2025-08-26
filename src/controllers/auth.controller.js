@@ -1,16 +1,19 @@
 import * as authService from "../services/auth.service.js";
 
-export const register = async (req, res, next) => {
+export const createUser = async (req, res, next) => {
   try {
-    const { username, email, password } = req.body;
-    const result = await authService.registerUser({
+    const { username, email, password, role } = req.body;
+
+    const result = await authService.createUserByUser({
       username,
       email,
       password,
+      role,
     });
+
     res.status(201).json({
-      message: "User registered successfully",
-      ...result,
+      message: "User created successfully by admin",
+      user: result.user,
     });
   } catch (error) {
     next(error);

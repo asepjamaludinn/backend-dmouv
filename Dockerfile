@@ -13,5 +13,6 @@ RUN npx prisma generate
 
 EXPOSE 2000 5555
 
-CMD ["nodemon", "--legacy-watch", "src/server.js"]
+CMD ["node", "src/server.js"]
+
 

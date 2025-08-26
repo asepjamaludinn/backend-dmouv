@@ -7,7 +7,7 @@ import authRoutes from "./routes/auth.js";
 import deviceRoutes from "./routes/devices.js";
 import settingsRoutes from "./routes/settings.js";
 import historyRoutes from "./routes/history.js";
-
+import notificationRoutes from "./routes/notification.js";
 const app = express();
 
 const limiter = rateLimit({
@@ -34,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/device", deviceRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/sensorHistory", historyRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

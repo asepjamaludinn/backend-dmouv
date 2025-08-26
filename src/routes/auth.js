@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, authorizeSuperuser } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
 import { registerValidation, loginValidation } from "../utils/validation.js";
 import * as authController from "../controllers/auth.controller.js";
@@ -20,12 +20,16 @@ const upload = multer({
   },
 });
 
-// @desc    Register new user
+// @desc    Create new user by a Super User
+// @access  Private (SUPERUSER ONLY)
+
 router.post(
-  "/register",
+  "/create-user",
+  authenticateToken,
+  authorizeSuperuser,
   registerValidation,
   validateRequest,
-  authController.register
+  authController.createUser
 );
 
 // @desc    Login user
