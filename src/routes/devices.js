@@ -1,7 +1,7 @@
 // src/routes/devices.js
 
 import express from "express";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, authorizeSuperuser } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
 import {
   deviceOnboardingValidation,
@@ -13,11 +13,12 @@ import * as deviceController from "../controllers/device.controller.js";
 const router = express.Router();
 
 // @route   POST /api/devices/onboarding
-// @desc    Device onboarding, now supports shared access.
-// @access  Private
+// @desc    Device onboarding
+// @access  Private (SUPERUSER ONLY)
 router.post(
   "/onboarding",
   authenticateToken,
+  authorizeSuperuser,
   deviceOnboardingValidation,
   validateRequest,
   deviceController.onboardDevice
@@ -29,6 +30,7 @@ router.post(
 router.post(
   "/:deviceId/action",
   authenticateToken,
+  authorizeSuperuser,
   deviceIdValidation,
   deviceActionValidation,
   validateRequest,

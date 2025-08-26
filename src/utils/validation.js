@@ -37,6 +37,11 @@ export const registerValidation = [
     }
     return true;
   }),
+
+  body("role")
+    .optional() // Jika tidak diisi, akan memakai default 'USER'
+    .isIn(["SUPERUSER", "USER"])
+    .withMessage("Role must be either SUPERUSER or USER"),
 ];
 
 export const loginValidation = [
@@ -125,7 +130,7 @@ export const deviceActionValidation = [
     .withMessage("Action is required")
     .isIn(["turn_on", "turn_off"])
     .withMessage("Action must be either 'turn_on' or 'turn_off'"),
-];    
+];
 
 export const scheduleValidation = [
   body("day")

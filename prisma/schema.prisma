@@ -20,6 +20,7 @@ model User {
   email       String   @unique @db.VarChar(100)
   password    String   @db.VarChar(255)
   profilePict String?  @map("profile_pict") @db.VarChar(500)
+  role        UserRole @default(USER)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -117,6 +118,11 @@ model NotificationRead {
 
   @@unique([notificationId, userId])
   @@map("notification_reads")
+}
+
+enum UserRole {
+  SUPERUSER
+  USER
 }
 
 enum DeviceStatus {
