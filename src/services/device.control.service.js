@@ -1,6 +1,7 @@
 import { prisma } from "../config/database.js";
 import { io } from "./socket.service.js";
 import { createNotification } from "./notification.service.js";
+import { publish } from "./mqtt.service.js";
 
 /**
  * @param {string} ipAddress
@@ -124,6 +125,18 @@ export const executeDeviceAction = async (deviceId, action, triggerType) => {
         };
         break;
     }
+
+    // KIRIM PERINTAH KE PERANGKAT IOT 
+    const actionTopic = `iot/${device.ipAddress}/action`;
+    const actionPayload = JSON.stringify({
+      device: device.deviceTypes[0], // Mengambil tipe perangkat pertama (lamp/fan)
+      action: action, // 'turn_on' atau 'turn_off'
+    });
+
+    publish(actionTopic, actionPayload);
+    console.log(
+      `📡 PUBLISH: Mengirim aksi '${action}' ke topik ${actionTopic}`
+    );
 
     io?.emit("device_operational_status_updated", {
       deviceId: device.id,
