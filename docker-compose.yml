@@ -1,12 +1,25 @@
-version: "3.9"
 services:
   app:
-    image: dmouv-app
     container_name: dmouv-app
+    build: .
     ports:
       - "2000:2000"
+      - "5555:5555"
     env_file:
       - .env
+    environment:
+      - NODE_ENV=development
     volumes:
-      - .:/app
-    command: npm run dev
+      - ./src:/usr/src/app/src
+# mosquitto:
+#   image: eclipse-mosquitto:2
+#   container_name: mosquitto-broker
+#   ports:
+#     # Port 1883 untuk koneksi MQTT dari luar Docker (misal dari ESP32)
+#     - "1883:1883"
+#     # Port 9001 untuk koneksi WebSocket
+#     - "9001:9001"
+#   volumes:
+#     - ./mosquitto/config:/mosquitto/config
+#     - ./mosquitto/data:/mosquitto/data
+#     - ./mosquitto/log:/mosquitto/log

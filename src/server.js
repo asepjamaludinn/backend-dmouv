@@ -1,17 +1,31 @@
-import express from "express";
-import notificationRoutes from "./routes/notificationRoutes.js";
-import notificationReadRoutes from "./routes/notificationReadRoutes.js";
+import http from "http";
+import dotenv from "dotenv";
+import { prisma } from "./config/database.js";
+import app from "./app.js";
+import { initializeSocket } from "./services/socket.service.js";
+import { initializeMqtt, disconnectMqtt } from "./services/mqtt.service.js";
+import { startScheduler, stopScheduler } from "./services/scheduler.service.js";
 
-const app = express();
+dotenv.config();
+
 const PORT = process.env.PORT || 2000;
+const server = http.createServer(app);
 
-app.use(express.json());
-app.get("/", (req, res) => {
-  res.send("Hello World");
+initializeSocket(server);
+initializeMqtt();
+startScheduler();
+
+process.on("SIGINT", async () => {
+  console.log("Shutting down gracefully...");
+  stopScheduler();
+  disconnectMqtt();
+  await prisma.$disconnect();
+  server.close(() => {
+    console.log("Server shut down.");
+    process.exit(0);
+  });
 });
 
-app.use("/notifications", notificationRoutes);
-app.use("/notification_reads", notificationReadRoutes);
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on port http://localhost:${PORT}`);
 });

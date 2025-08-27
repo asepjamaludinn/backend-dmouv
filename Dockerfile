@@ -1,15 +1,18 @@
-FROM node:20-alpine
+FROM node:20
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install --production
+RUN npm install --include=dev
+RUN npm install -g nodemon
 
 COPY . .
 
 RUN npx prisma generate
 
-EXPOSE 2000
+EXPOSE 2000 5555
 
-CMD ["npm", "start"]
+CMD ["node", "src/server.js"]
+
+
