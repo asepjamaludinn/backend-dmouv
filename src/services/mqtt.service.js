@@ -48,9 +48,14 @@ export const initializeMqtt = () => {
   console.log("MQTT service initialized.");
 };
 
-export const publish = (topic, message) => {
+export const publish = (topic, message, options = {}) => {
   if (mqttClient) {
-    mqttClient.publish(topic, message);
+    const finalOptions = {
+      qos: 1,
+      retain: false,
+      ...options,
+    };
+    mqttClient.publish(topic, message, finalOptions);
   }
 };
 

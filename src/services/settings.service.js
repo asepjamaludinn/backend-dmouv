@@ -1,5 +1,6 @@
 import { prisma } from "../config/database.js";
 import { io } from "./socket.service.js";
+import { publish } from "./mqtt.service.js";
 
 export const getSettingsByDeviceId = async (deviceId) => {
   const settings = await prisma.setting.findUnique({
@@ -33,14 +34,18 @@ export const updateSettingsByDeviceId = async (deviceId, updateData) => {
 
     io?.emit("settings_updated", updatedSettings);
 
+    const deviceType = updatedSettings.device.deviceTypes[0];
+    const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
+    const settingsPayload = JSON.stringify({
+      device: deviceType,
+      auto_mode_enabled: updatedSettings.autoModeEnabled,
+    });
+    publish(settingsTopic, settingsPayload);
+    console.log(`PUBLISH: Mengirim update settings ke topik ${settingsTopic}`);
+
     return updatedSettings;
   } catch (error) {
-    if (error.code === "P2025") {
-      const notFoundError = new Error("Settings not found for this device");
-      notFoundError.status = 404;
-      throw notFoundError;
-    }
-    throw error;
+    return updatedSettings;
   }
 };
 
