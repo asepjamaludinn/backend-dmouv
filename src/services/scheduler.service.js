@@ -4,6 +4,7 @@ import pkg from "date-fns-tz";
 const { format, utcToZonedTime } = pkg;
 
 let scheduleInterval = null;
+
 const checkScheduledActions = async () => {
   try {
     const timeZone = "Asia/Jakarta";
@@ -33,7 +34,7 @@ const checkScheduledActions = async () => {
       const action = currentTime === schedule.onTime ? "turn_on" : "turn_off";
 
       console.log(
-        `Executing '${action}' for device '${device.deviceName}' based on schedule.`
+        `🕒 SCHEDULE: Executing '${action}' for device '${device.deviceName}'.`
       );
 
       await deviceControlService.executeDeviceAction(
@@ -50,12 +51,13 @@ const checkScheduledActions = async () => {
 export const startScheduler = () => {
   if (scheduleInterval) return;
   scheduleInterval = setInterval(checkScheduledActions, 60000);
-  console.log("Scheduler service started.");
+  console.log("Scheduler service started (checks every 60 seconds).");
 };
 
 export const stopScheduler = () => {
   if (scheduleInterval) {
     clearInterval(scheduleInterval);
+    scheduleInterval = null;
     console.log("Scheduler service stopped.");
   }
 };
