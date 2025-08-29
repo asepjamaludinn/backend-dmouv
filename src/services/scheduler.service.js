@@ -1,3 +1,5 @@
+// src/services/scheduler.service.js
+
 import { prisma } from "../config/database.js";
 import * as deviceControlService from "./device.control.service.js";
 import pkg from "date-fns-tz";
@@ -5,6 +7,7 @@ const { format, utcToZonedTime } = pkg;
 
 let scheduleInterval = null;
 let initialTimeout = null;
+let cleanupInterval = null;
 
 const checkScheduledActions = async () => {
   try {
@@ -49,14 +52,57 @@ const checkScheduledActions = async () => {
   }
 };
 
+const cleanupOldData = async () => {
+  console.log("CLEANUP: Running job to delete old data...");
+  const retentionDays = parseInt(process.env.DATA_RETENTION_DAYS, 10);
+
+  if (isNaN(retentionDays) || retentionDays <= 0) {
+    console.log("CLEANUP: Data retention is disabled or invalid.");
+    return;
+  }
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  try {
+    const deletedHistory = await prisma.sensorHistory.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    if (deletedHistory.count > 0) {
+      console.log(
+        `CLEANUP: Successfully deleted ${deletedHistory.count} old sensor history records.`
+      );
+    }
+
+    const deletedNotifications = await prisma.notification.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    if (deletedNotifications.count > 0) {
+      console.log(
+        `CLEANUP: Successfully deleted ${deletedNotifications.count} old notification records.`
+      );
+    }
+  } catch (error) {
+    console.error("CLEANUP: Error during old data cleanup:", error);
+  }
+};
+
 export const startScheduler = () => {
   if (scheduleInterval || initialTimeout) return;
 
   const runAlignedScheduler = () => {
     console.log("Scheduler is now aligned and running.");
-
     checkScheduledActions();
-
     scheduleInterval = setInterval(checkScheduledActions, 60000);
   };
 
@@ -67,8 +113,12 @@ export const startScheduler = () => {
   console.log(
     `Scheduler will start in ${secondsRemaining} seconds to align with the clock.`
   );
-
   initialTimeout = setTimeout(runAlignedScheduler, millisecondsUntilNextMinute);
+
+  cleanupOldData();
+  const oneDayInMs = 24 * 60 * 60 * 1000;
+  cleanupInterval = setInterval(cleanupOldData, oneDayInMs);
+  console.log("Data cleanup job scheduled to run every 24 hours.");
 };
 
 export const stopScheduler = () => {
@@ -80,5 +130,10 @@ export const stopScheduler = () => {
     clearInterval(scheduleInterval);
     scheduleInterval = null;
     console.log("Scheduler service stopped.");
+  }
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+    console.log("Data cleanup job stopped.");
   }
 };
