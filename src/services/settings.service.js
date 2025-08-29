@@ -25,9 +25,16 @@ export const getSettingsByDeviceId = async (deviceId) => {
 };
 
 export const updateSettingsByDeviceId = async (deviceId, updateData) => {
+  const dataToUpdate = { ...updateData };
+
+  if (dataToUpdate.autoModeEnabled === true) {
+    dataToUpdate.scheduleEnabled = false;
+  } else if (dataToUpdate.scheduleEnabled === true) {
+    dataToUpdate.autoModeEnabled = false;
+  }
   const updatedSettings = await prisma.setting.update({
     where: { deviceId },
-    data: updateData,
+    data: dataToUpdate,
     include: { device: true },
   });
 
