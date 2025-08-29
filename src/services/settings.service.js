@@ -25,28 +25,35 @@ export const getSettingsByDeviceId = async (deviceId) => {
 };
 
 export const updateSettingsByDeviceId = async (deviceId, updateData) => {
-  try {
-    const updatedSettings = await prisma.setting.update({
-      where: { deviceId },
-      data: updateData,
-      include: { device: true },
-    });
+  const updatedSettings = await prisma.setting.update({
+    where: { deviceId },
+    data: updateData,
+    include: { device: true },
+  });
 
-    io?.emit("settings_updated", updatedSettings);
+  io?.emit("settings_updated", updatedSettings);
 
-    const deviceType = updatedSettings.device.deviceTypes[0];
-    const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
-    const settingsPayload = JSON.stringify({
-      device: deviceType,
-      auto_mode_enabled: updatedSettings.autoModeEnabled,
-    });
-    publish(settingsTopic, settingsPayload);
-    console.log(`PUBLISH: Mengirim update settings ke topik ${settingsTopic}`);
-
-    return updatedSettings;
-  } catch (error) {
-    return updatedSettings;
+  let mode = "manual";
+  if (updatedSettings.autoModeEnabled) {
+    mode = "auto";
+  } else if (updatedSettings.scheduleEnabled) {
+    mode = "scheduled";
   }
+
+  const deviceType = updatedSettings.device.deviceTypes[0];
+  const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
+
+  const settingsPayload = JSON.stringify({
+    device: deviceType,
+    mode: mode,
+  });
+
+  publish(settingsTopic, settingsPayload);
+  console.log(
+    `PUBLISH: Mengirim update settings ke topik ${settingsTopic} dengan payload: ${settingsPayload}`
+  );
+
+  return updatedSettings;
 };
 
 export const addOrUpdateScheduleByDevice = async (deviceId, scheduleData) => {
@@ -84,11 +91,26 @@ export const addOrUpdateScheduleByDevice = async (deviceId, scheduleData) => {
 
     const updatedSettings = await tx.setting.update({
       where: { id: setting.id },
-      data: { scheduleEnabled: true },
+      data: {
+        scheduleEnabled: true,
+        autoModeEnabled: false,
+      },
       include: { device: true },
     });
 
     io?.emit("settings_updated", updatedSettings);
+
+    const deviceType = updatedSettings.device.deviceTypes[0];
+    const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
+    const settingsPayload = JSON.stringify({
+      device: deviceType,
+      mode: "scheduled",
+    });
+
+    publish(settingsTopic, settingsPayload);
+    console.log(
+      `PUBLISH: Mengirim update settings ke topik ${settingsTopic} dengan payload: ${settingsPayload}`
+    );
 
     return schedule;
   });

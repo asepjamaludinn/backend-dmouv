@@ -12,7 +12,7 @@ export const createUser = async (req, res, next) => {
     });
 
     res.status(201).json({
-      message: "User created successfully by admin",
+      message: "User created successfully by superuser",
       user: result.user,
     });
   } catch (error) {
