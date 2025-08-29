@@ -3,12 +3,12 @@ import * as deviceControlService from "../services/device.control.service.js";
 
 export const onboardDevice = async (req, res, next) => {
   try {
-    const { ip_address, wifi_ssid, wifi_password } = req.body;
+    const { devices_id } = req.body;
 
     const result = await deviceService.onboardNewDevices({
-      ipAddress: ip_address,
-      wifiSsid: wifi_ssid,
-      wifiPassword: wifi_password,
+      deviceId:devices_id,
+      brokerUrl:process.env.MQTT_HOST,
+      port:process.env.MQTT_PORT
     });
 
     if (result.isNew) {
