@@ -98,7 +98,6 @@ export const getNotificationsByUserId = async (userId) => {
  * @param {string} userId - ID pengguna untuk verifikasi kepemilikan.
  */
 export const markNotificationAsRead = async (notificationReadId, userId) => {
-  // Verifikasi bahwa notifikasi ini memang milik pengguna
   const notificationRead = await prisma.notificationRead.findFirst({
     where: {
       id: notificationReadId,

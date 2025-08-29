@@ -83,7 +83,7 @@ export const recordAutonomousAction = async (deviceId, action, triggerType) => {
   });
 
   console.log(
-    `✅ RECORDED: Action '${action}' for device '${device.deviceName}' triggered by '${triggerType}'`
+    ` RECORDED: Action '${action}' for device '${device.deviceName}' triggered by '${triggerType}'`
   );
 };
 
@@ -165,9 +165,7 @@ export const executeDeviceAction = async (deviceId, action, triggerType) => {
     });
 
     publish(actionTopic, actionPayload);
-    console.log(
-      `📡 PUBLISH: Mengirim aksi '${action}' ke topik ${actionTopic}`
-    );
+    console.log(`PUBLISH: Mengirim aksi '${action}' ke topik ${actionTopic}`);
 
     io?.emit("device_operational_status_updated", {
       deviceId: device.id,
