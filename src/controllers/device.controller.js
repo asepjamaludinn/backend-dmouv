@@ -1,14 +1,24 @@
 import * as deviceService from "../services/device.service.js";
 import * as deviceControlService from "../services/device.control.service.js";
 
+export const getDevices = async (req, res, next) => {
+  try {
+    const devices = await deviceService.getAllDevices();
+    res.status(200).json({
+      message: "Devices fetched successfully",
+      devices: devices,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const onboardDevice = async (req, res, next) => {
   try {
-    const { ip_address, wifi_ssid, wifi_password } = req.body;
+    const { uniqueId } = req.body;
 
     const result = await deviceService.onboardNewDevices({
-      ipAddress: ip_address,
-      wifiSsid: wifi_ssid,
-      wifiPassword: wifi_password,
+      uniqueId: uniqueId,
     });
 
     if (result.isNew) {

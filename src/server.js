@@ -8,7 +8,7 @@ import { startScheduler, stopScheduler } from "./services/scheduler.service.js";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 2000;
+const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 initializeSocket(server);
