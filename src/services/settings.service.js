@@ -48,7 +48,7 @@ export const updateSettingsByDeviceId = async (deviceId, updateData) => {
   }
 
   const deviceType = updatedSettings.device.deviceTypes[0];
-  const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
+  const settingsTopic = `iot/${updatedSettings.device.uniqueId}/settings/update`;
 
   const settingsPayload = JSON.stringify({
     device: deviceType,
@@ -107,8 +107,14 @@ export const addOrUpdateScheduleByDevice = async (deviceId, scheduleData) => {
 
     io?.emit("settings_updated", updatedSettings);
 
-    const deviceType = updatedSettings.device.deviceTypes[0];
-    const settingsTopic = `iot/${updatedSettings.device.ipAddress}/settings/update`;
+    const deviceType = updatedSettings.device.deviceTypes?.[0]; 
+    if (!deviceType) {
+      console.error(
+        `Device ${updatedSettings.device.uniqueId} has no deviceType.`
+      );
+      return updatedSettings;
+    }
+    const settingsTopic = `iot/${updatedSettings.device.uniqueId}/settings/update`;
     const settingsPayload = JSON.stringify({
       device: deviceType,
       mode: "scheduled",

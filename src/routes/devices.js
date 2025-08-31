@@ -1,5 +1,3 @@
-// src/routes/devices.js
-
 import express from "express";
 import { authenticateToken, authorizeSuperuser } from "../middleware/auth.js";
 import { validateRequest } from "../utils/validation.js";
@@ -11,6 +9,11 @@ import {
 import * as deviceController from "../controllers/device.controller.js";
 
 const router = express.Router();
+
+// @route   GET /api/device
+// @desc    Get all registered devices
+// @access  Private (semua user yang login bisa akses)
+router.get("/", authenticateToken, deviceController.getDevices);
 
 // @route   POST /api/devices/onboarding
 // @desc    Device onboarding
