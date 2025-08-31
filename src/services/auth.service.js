@@ -88,6 +88,7 @@ export const getUserProfile = async (userId) => {
       username: true,
       email: true,
       profilePict: true,
+      role: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -117,13 +118,14 @@ export const updateUserProfile = async (userId, updateData) => {
       username: true,
       email: true,
       profilePict: true,
+      role: true,
       updatedAt: true,
     },
   });
   return updatedUser;
 };
 
-export const uploadProfilePic = async (userId, file, token) => {
+export const uploadProfilePicture = async (userId, file, token) => {
   try {
     const metadata = await sharp(file.buffer).metadata();
     const maxWidth = 2048;
@@ -161,7 +163,9 @@ export const uploadProfilePic = async (userId, file, token) => {
 
   if (uploadError) {
     console.error("Supabase Upload Error:", uploadError.message);
-    throw new Error("Failed to upload image to storage");
+    const error = new Error(`Failed to upload image: ${uploadError.message}`);
+    error.status = 500;
+    throw error;
   }
 
   const { data: urlData } = supabase.storage
@@ -177,6 +181,7 @@ export const uploadProfilePic = async (userId, file, token) => {
       username: true,
       email: true,
       profilePict: true,
+      role: true,
       updatedAt: true,
     },
   });

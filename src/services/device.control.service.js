@@ -4,26 +4,24 @@ import { createNotification } from "./notification.service.js";
 import { publish } from "./mqtt.service.js";
 
 /**
- * @param {string} ipAddress Alamat IP perangkat.
- * @param {string} status Status baru ('online' atau 'offline').
+ * @param {string} uniqueId - ID unik permanen perangkat.
+ * @param {string} status - Status baru ('online' atau 'offline').
  */
-export const updateStatusByIp = async (ipAddress, status) => {
+export const updateStatusByUniqueId = async (uniqueId, status) => {
   const updatedDevices = await prisma.device.updateMany({
-    where: { ipAddress },
+    where: { uniqueId },
     data: { status, lastSeen: new Date() },
   });
 
   if (updatedDevices.count > 0) {
-    const devices = await prisma.device.findMany({ where: { ipAddress } });
+    const devices = await prisma.device.findMany({ where: { uniqueId } });
     io?.emit("devices_updated", devices);
-    console.log(
-      `Status updated for ${devices.length} devices at IP ${ipAddress} to ${status}`
-    );
+    console.log(`Status updated for devices with ID ${uniqueId} to ${status}`);
   }
 };
 
 /**
- * @param {string} deviceId ID perangkat.
+ * @param {string} deviceId ID internal database (UUID).
  * @param {string} action Aksi yang dilaporkan ('turn_on' atau 'turn_off').
  * @param {string} triggerType Pemicu aksi ('motion_detected' atau 'scheduled').
  */
@@ -83,38 +81,51 @@ export const recordAutonomousAction = async (deviceId, action, triggerType) => {
   });
 
   console.log(
-    ` RECORDED: Action '${action}' for device '${device.deviceName}' triggered by '${triggerType}'`
+    `RECORDED: Action '${action}' for device '${device.deviceName}' triggered by '${triggerType}'`
   );
 };
 
 /**
- * @param {string} ipAddress Alamat IP perangkat yang melaporkan.
+ * @param {string} uniqueId - ID unik permanen perangkat.
  */
-export const handleMotionDetection = async (ipAddress) => {
+export const handleMotionDetection = async (uniqueId) => {
   const devices = await prisma.device.findMany({
-    where: { ipAddress, setting: { autoModeEnabled: true } },
+    where: { uniqueId, setting: { autoModeEnabled: true } },
   });
 
   for (const device of devices) {
     await recordAutonomousAction(device.id, "turn_on", "motion_detected");
   }
+
+  if (devices.length > 0) {
+    io?.emit("motion_status_updated", {
+      uniqueId,
+      motionStatus: "detected",
+    });
+    console.log(`SOCKET EMIT: Motion detected for uniqueId: ${uniqueId}`);
+  }
 };
 
 /**
- * @param {string} ipAddress Alamat IP perangkat yang melaporkan.
+ * @param {string} uniqueId - ID unik permanen perangkat.
  */
-export const handleMotionCleared = async (ipAddress) => {
+export const handleMotionCleared = async (uniqueId) => {
   const devices = await prisma.device.findMany({
-    where: { ipAddress, setting: { autoModeEnabled: true } },
+    where: { uniqueId, setting: { autoModeEnabled: true } },
   });
 
   for (const device of devices) {
     await recordAutonomousAction(device.id, "turn_off", "motion_detected");
   }
+
+  if (devices.length > 0) {
+    io?.emit("motion_status_updated", { uniqueId, motionStatus: "clear" });
+    console.log(`SOCKET EMIT: Motion cleared for uniqueId: ${uniqueId}`);
+  }
 };
 
 /**
- * @param {string} deviceId ID perangkat yang akan dikontrol.
+ * @param {string} deviceId ID internal database (UUID).
  * @param {string} action Aksi yang akan dilakukan ('turn_on' atau 'turn_off').
  * @param {string} triggerType Pemicu aksi ('manual', 'scheduled').
  * @returns {Promise<object>} State perangkat setelah aksi.
@@ -158,7 +169,7 @@ export const executeDeviceAction = async (deviceId, action, triggerType) => {
       io?.emit("settings_updated", updatedSettings);
     }
 
-    const actionTopic = `iot/${device.ipAddress}/action`;
+    const actionTopic = `iot/${device.uniqueId}/action`;
     const actionPayload = JSON.stringify({
       device: device.deviceTypes[0],
       action: action,

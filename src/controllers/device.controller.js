@@ -1,14 +1,24 @@
 import * as deviceService from "../services/device.service.js";
 import * as deviceControlService from "../services/device.control.service.js";
 
+export const getDevices = async (req, res, next) => {
+  try {
+    const devices = await deviceService.getAllDevices();
+    res.status(200).json({
+      message: "Devices fetched successfully",
+      devices: devices,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const onboardDevice = async (req, res, next) => {
   try {
-    const { devices_id } = req.body;
+    const { uniqueId } = req.body;
 
     const result = await deviceService.onboardNewDevices({
-      deviceId:devices_id,
-      brokerUrl:process.env.MQTT_HOST,
-      port:process.env.MQTT_PORT
+      uniqueId: uniqueId,
     });
 
     if (result.isNew) {

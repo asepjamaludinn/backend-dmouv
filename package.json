@@ -4,14 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --legacy-watch src/server.js",
     "start": "node src/server.js",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev --name init",
-    "db:studio": "prisma studio",
-    "postinstall": "prisma generate && [ \"$VERCEL_ENV\" != \"production\" ] && prisma db push && prisma db seed || echo 'Skipping seed in production'"
+    "build": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

@@ -93,36 +93,6 @@ export const getNotificationsByUserId = async (userId) => {
 };
 
 /**
- * Menandai notifikasi sebagai sudah dibaca.
- * @param {string} notificationReadId - ID dari entri NotificationRead.
- * @param {string} userId - ID pengguna untuk verifikasi kepemilikan.
- */
-export const markNotificationAsRead = async (notificationReadId, userId) => {
-  const notificationRead = await prisma.notificationRead.findFirst({
-    where: {
-      id: notificationReadId,
-      userId: userId,
-    },
-  });
-
-  if (!notificationRead) {
-    const error = new Error("Notification not found or access denied.");
-    error.status = 404;
-    throw error;
-  }
-
-  return prisma.notificationRead.update({
-    where: {
-      id: notificationReadId,
-    },
-    data: {
-      isRead: true,
-      readAt: new Date(),
-    },
-  });
-};
-
-/**
  * Mendapatkan jumlah notifikasi yang belum dibaca oleh pengguna.
  * @param {string} userId - ID pengguna.
  */

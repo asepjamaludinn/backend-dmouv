@@ -1,5 +1,3 @@
-// src/services/scheduler.service.js
-
 import { prisma } from "../config/database.js";
 import * as deviceControlService from "./device.control.service.js";
 import pkg from "date-fns-tz";

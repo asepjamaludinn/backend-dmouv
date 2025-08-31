@@ -20,11 +20,6 @@ router.get("/unread-count", notificationController.getUnreadCount);
 // @access  Private
 router.post("/mark-all-as-read", notificationController.markAllAsRead);
 
-// @route   PATCH /api/notifications/:id/read
-// @desc    Mark a specific notification as read
-// @access  Private
-router.patch("/:id/read", notificationController.markAsRead);
-
 // @route   DELETE /api/notifications/:id
 // @desc    Delete a specific notification for the user
 // @access  Private

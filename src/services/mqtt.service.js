@@ -1,68 +1,91 @@
-  import mqtt from "mqtt";
-  import * as deviceControlService from "./device.control.service.js";
+import mqtt from "mqtt";
+import * as deviceControlService from "./device.control.service.js";
+let mqttClient = null;
 
-  let mqttClient = null;
+export const initializeMqtt = () => {
+  const host = process.env.MQTT_BROKER;
+  const port = process.env.MQTT_PORT;
+  const username = process.env.MQTT_USERNAME;
+  const password = process.env.MQTT_PASSWORD;
 
-  export const initializeMqtt = () => {
-    const brokerUrl = process.env.MQTT_BROKER_URL || "mqtt://localhost";
-    const options = {
-      clientId: `server_${Math.random().toString(16).slice(2, 10)}`,
-      username: process.env.MQTT_USERNAME,
-      password: process.env.MQTT_PASSWORD,
-    };
+  if (!host || !port || !username || !password) {
+    console.error(
+      "MQTT credentials are not fully set in .env file. Aborting MQTT connection."
+    );
+    return;
+  }
 
-    mqttClient = mqtt.connect(brokerUrl, options);
+  const protocol = port === "8883" ? "mqtts" : "mqtt";
+  const brokerUrl = `${protocol}://${host}:${port}`;
 
-    mqttClient.on("connect", () => {
-      console.log("MQTT client connected to broker.");
-      mqttClient.subscribe("iot/+/status", (err) => {
-        if (err) console.error("Failed to subscribe to status topic:", err);
-      });
-      mqttClient.subscribe("iot/+/sensor", (err) => {
-        if (err) console.error("Failed to subscribe to sensor topic:", err);
-      });
+  const options = {
+    clientId: `server_${Math.random().toString(16).slice(2, 10)}`,
+    username,
+    password,
+    clean: true,
+    connectTimeout: 4000,
+    reconnectPeriod: 1000,
+  };
+
+  console.log(`[MQTT] Connecting to broker at ${brokerUrl}`);
+  mqttClient = mqtt.connect(brokerUrl, options);
+
+  mqttClient.on("connect", () => {
+    console.log("[MQTT] Client connected to broker.");
+    mqttClient.subscribe("iot/+/status", (err) => {
+      if (err) console.error("Failed to subscribe to status topic:", err);
+      else console.log("[MQTT] Subscribed to status topic: iot/+/status");
     });
+    mqttClient.subscribe("iot/+/sensor", (err) => {
+      if (err) console.error("Failed to subscribe to sensor topic:", err);
+      else console.log("[MQTT] Subscribed to sensor topic: iot/+/sensor");
+    });
+  });
 
-    mqttClient.on("message", (topic, message) => {
-      try {
-        const payload = JSON.parse(message.toString());
-        const ipAddress = topic.split("/")[1];
+  mqttClient.on("message", (topic, message) => {
+    try {
+      const payload = JSON.parse(message.toString());
 
-        if (topic.includes("status")) {
-          deviceControlService.updateStatusByIp(ipAddress, payload.status);
-        } else if (topic.includes("sensor")) {
-          if (payload.motion_detected) {
-            deviceControlService.handleMotionDetection(ipAddress);
-          }
-          if (payload.motion_cleared) {
-            deviceControlService.handleMotionCleared(ipAddress);
-          }
+      const deviceIdentifier = topic.split("/")[1];
+
+      if (topic.includes("status")) {
+        deviceControlService.updateStatusByUniqueId(
+          deviceIdentifier,
+          payload.status
+        );
+      } else if (topic.includes("sensor")) {
+        if (payload.motion_detected) {
+          deviceControlService.handleMotionDetection(deviceIdentifier);
         }
-      } catch (error) {
-        console.error("Failed to process MQTT message:", error);
+        if (payload.motion_cleared) {
+          deviceControlService.handleMotionCleared(deviceIdentifier);
+        }
       }
+    } catch (error) {
+      console.error("Failed to process MQTT message:", error);
+    }
+  });
+
+  mqttClient.on("error", (error) => console.error("MQTT error:", error));
+};
+
+export const publish = (topic, message, options = {}) => {
+  if (mqttClient && mqttClient.connected) {
+    const finalOptions = {
+      qos: 1,
+      retain: false,
+      ...options,
+    };
+    mqttClient.publish(topic, message, finalOptions);
+  } else {
+    console.error("[MQTT] Client is not connected. Message not published.");
+  }
+};
+
+export const disconnectMqtt = () => {
+  if (mqttClient) {
+    mqttClient.end(true, () => {
+      console.log("[MQTT] Client disconnected gracefully.");
     });
-
-    mqttClient.on("error", (error) => console.error("MQTT error:", error));
-
-    console.log("MQTT service initialized.");
-  };
-
-  export const publish = (topic, message, options = {}) => {
-    if (mqttClient) {
-      const finalOptions = {
-        qos: 1,
-        retain: false,
-        ...options,
-      };
-      mqttClient.publish(topic, message, finalOptions);
-    }
-  };
-
-  export const disconnectMqtt = () => {
-    if (mqttClient) {
-      mqttClient.end(true, () => {
-        console.log("MQTT client disconnected gracefully.");
-      });
-    }
-  };
+  }
+};
