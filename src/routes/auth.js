@@ -22,7 +22,6 @@ const upload = multer({
 
 // @desc    Create new user by a Super User
 // @access  Private (SUPERUSER ONLY)
-
 router.post(
   "/create-user",
   authenticateToken,

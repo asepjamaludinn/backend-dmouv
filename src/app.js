@@ -12,7 +12,7 @@ const app = express();
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 1000,x 
   message: "Too many requests from this Device, please try again later.",
 });
 app.use(helmet());
