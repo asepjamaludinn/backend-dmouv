@@ -1,6 +1,9 @@
 import { prisma } from "../config/database.js";
 import { io } from "./socket.service.js";
 
+/**
+ * Mengambil semua perangkat dari database.
+ */
 export const getAllDevices = async () => {
   const devices = await prisma.device.findMany({
     include: {
@@ -38,7 +41,7 @@ export const onboardNewDevices = async (deviceData) => {
     await tx.device.create({
       data: {
         uniqueId: uniqueId,
-        deviceName: `IoT Lamp ${uniqueId}`,
+        deviceName: `Lamp ${uniqueId}`,
         deviceTypes: ["lamp"],
         setting: {
           create: {
@@ -52,7 +55,7 @@ export const onboardNewDevices = async (deviceData) => {
     await tx.device.create({
       data: {
         uniqueId: uniqueId,
-        deviceName: `IoT Fan ${uniqueId}`,
+        deviceName: `Fan ${uniqueId}`,
         deviceTypes: ["fan"],
         setting: {
           create: {

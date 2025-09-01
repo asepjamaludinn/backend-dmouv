@@ -12,10 +12,9 @@ const app = express();
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 1000,
   message: "Too many requests from this Device, please try again later.",
 });
-
 app.use(helmet());
 app.use(
   cors({
@@ -30,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/status", (req, res) => {
   res.status(200).json({
     status: "OK",
-    message: "IoT Lamp Backend is running",
+    message: "IoT Backend is running",
     timestamp: new Date().toISOString(),
   });
 });
