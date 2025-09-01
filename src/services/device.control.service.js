@@ -208,7 +208,7 @@ export const executeDeviceAction = async (deviceId, action, triggerType) => {
       notificationDetails = {
         type: "device_status_change",
         title: "Aksi Manual Pengguna",
-        message: `Perangkat ${finalDeviceState.deviceName} telah ${actionText} oleh pengguna. Mode otomatis dan jadwal kini dinonaktifkan.`,
+        message: `Perangkat ${finalDeviceState.deviceName} telah ${actionText}. Mode otomatis dan jadwal kini dinonaktifkan.`,
       };
       break;
   }
