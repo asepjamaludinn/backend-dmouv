@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-
 import authRoutes from "./routes/auth.js";
 import deviceRoutes from "./routes/devices.js";
 import settingsRoutes from "./routes/settings.js";
@@ -13,7 +12,9 @@ const app = express();
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
-  message: "Too many requests from this Device, please try again later.",
+  message: {
+    message: "Too many requests from this Device, please try again later.",
+  },
 });
 app.use(helmet());
 app.use(
