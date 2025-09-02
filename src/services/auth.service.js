@@ -115,12 +115,13 @@ export const updateUserProfile = async (userId, updateData) => {
     dataToUpdate.username = updateData.username;
   }
 
+  // Logika untuk mengubah password dengan validasi
   if (updateData.newPassword) {
     if (!updateData.currentPassword) {
       const error = new Error(
         "Current password is required to set a new password."
       );
-      error.status = 400;
+      error.status = 400; // Bad Request
       throw error;
     }
 
@@ -131,10 +132,11 @@ export const updateUserProfile = async (userId, updateData) => {
 
     if (!isMatch) {
       const error = new Error("Incorrect current password.");
-      error.status = 401;
+      error.status = 401; // Unauthorized
       throw error;
     }
 
+    // Jika password lama cocok, hash password baru
     dataToUpdate.password = await bcrypt.hash(updateData.newPassword, 12);
   }
 
@@ -154,8 +156,6 @@ export const updateUserProfile = async (userId, updateData) => {
 };
 
 export const uploadProfilePicture = async (userId, file) => {
-export const uploadProfilePicture = async (userId, file, token) => {
-
   try {
     const metadata = await sharp(file.buffer).metadata();
     const maxWidth = 2048;
