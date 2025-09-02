@@ -154,6 +154,8 @@ export const updateUserProfile = async (userId, updateData) => {
 };
 
 export const uploadProfilePicture = async (userId, file) => {
+export const uploadProfilePicture = async (userId, file, token) => {
+
   try {
     const metadata = await sharp(file.buffer).metadata();
     const maxWidth = 2048;
