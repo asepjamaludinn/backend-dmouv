@@ -1,36 +1,81 @@
-# D'Mouv – Smart Detection (Backend)
+# D'Mouv – Smart Detection Backend 🚀
 
-Selamat datang di repositori backend untuk proyek **D'Mouv – Smart Detection**. Proyek ini adalah sistem IoT berbasis Node.js yang mengintegrasikan deteksi gerakan (melalui kamera) dengan kontrol perangkat pintar seperti lampu dan kipas.
+Selamat datang di repositori backend untuk proyek **D'Mouv – Smart Detection**.  
+Ini adalah sistem IoT yang tangguh yang dibangun dengan **Node.js**, dirancang untuk mengintegrasikan deteksi gerakan real-time dari perangkat fisik dengan kontrol rumah pintar seperti **lampu** dan **kipas**.
 
-Sistem ini dirancang untuk dapat diakses oleh banyak pengguna secara real-time melalui web atau aplikasi mobile, dengan notifikasi instan, riwayat kejadian, dan mode kontrol yang fleksibel (Manual, Otomatis, dan Terjadwal).
+Sistem ini mendukung banyak pengguna melalui aplikasi mobile, dengan fitur **notifikasi instan**, **riwayat kejadian**, dan mode kontrol yang fleksibel (Manual, Otomatis, dan Terjadwal).
 
-## ✨ Fitur Utama (Main Features)
+---
 
-- **Manajemen Akun:** Registrasi, Login (JWT), Edit Profil (username, password, avatar), dan Lupa Password.
-- **Manajemen Perangkat:** Onboarding perangkat baru (Lampu & Kipas) dan kontrol manual ON/OFF.
-- **Mode Otomatisasi:**
-  - **Mode Otomatis:** Menyalakan/mematikan perangkat berdasarkan deteksi gerakan dari MQTT.
-  - **Mode Jadwal:** Mengatur jadwal ON/OFF perangkat berdasarkan hari dan jam.
-- **Notifikasi Real-time:** Notifikasi instan dikirim ke semua pengguna melalui WebSockets (Socket.IO) untuk setiap kejadian penting (deteksi gerakan, aksi manual, jadwal).
-- **Riwayat Sensor:** Mencatat semua aktivitas perangkat ke dalam database untuk audit dan analisis.
-- **Keamanan:** Dilengkapi dengan standar keamanan dasar seperti Helmet, Rate Limiting, dan otentikasi di semua endpoint penting.
+## 🏛️ Arsitektur Sistem
+Proyek ini mengikuti arsitektur **decoupled** untuk memastikan **skalabilitas** dan **kemudahan pemeliharaan**.  
 
-## 🛠️ Teknologi yang Digunakan (Tech Stack)
+```mermaid
+flowchart LR
+  IoT["Perangkat IoT (Python/YOLO)"] <--> MQTT["Broker MQTT"]
+  MQTT <--> Backend["Backend Node.js"]
+  Backend <--> DB["Database PostgreSQL"]
+  Backend <--> |"WebSockets"| FE["Frontend React Native"]
+````
 
-- **Runtime:** Node.js
-- **Framework:** Express.js
-- **Database:** PostgreSQL
-- **ORM:** Prisma
-- **Komunikasi IoT:** MQTT
-- **Komunikasi Real-time:** Socket.IO
-- **Otentikasi:** JSON Web Tokens (JWT)
-- **Penyimpanan File:** Supabase Storage (untuk avatar profil)
-- **Validasi:** `express-validator`
-- **Kontainerisasi:** Docker & Docker Compose
+* **Perangkat IoT**: Menangkap video, melakukan deteksi pose, mempublikasikan data status/sensor ke broker MQTT, dan menerima perintah dari backend.
+* **Broker MQTT**: Pusat komunikasi semua perangkat IoT.
+* **Backend**: Otak sistem. Memproses data dari MQTT, mengelola database, menangani logika bisnis, dan mengirim real-time update ke frontend.
+* **Frontend**: Antarmuka pengguna berbasis React Native.
 
-## Prerequisites
+---
 
-Sebelum memulai, pastikan Anda telah menginstal software berikut:
+## ✨ Fitur Utama
+
+* 👤 **Manajemen Pengguna & Otentikasi**
+
+  * Registrasi & login aman menggunakan **JWT**
+  * Edit profil (username, password, avatar)
+  * Reset password
+
+* 🕹️ **Manajemen Perangkat**
+
+  * Onboarding otomatis perangkat baru
+  * Kontrol manual ON/OFF (khusus superuser)
+
+* 🧠 **Mode Otomatisasi Cerdas**
+
+  * **Otomatis**: perangkat ON/OFF berdasarkan deteksi gerakan
+  * **Jadwal**: atur jadwal harian untuk ON/OFF
+
+* ⚡ **Notifikasi Real-time**
+
+  * Melalui **WebSockets (Socket.IO)**
+  * Event: deteksi gerakan, aksi manual, jadwal, status perangkat
+
+* 📖 **Riwayat Komprehensif**
+
+  * Semua aktivitas sensor & perangkat dicatat
+  * API dengan filter & pagination
+
+* 🔒 **Keamanan**
+
+  * Helmet (proteksi header)
+  * Rate limiting (anti brute-force)
+  * Role-based access (User vs Superuser)
+
+---
+
+## 🛠️ Tumpukan Teknologi
+
+* **Runtime**: Node.js
+* **Framework**: Express.js
+* **Database**: PostgreSQL + Prisma ORM
+* **IoT Communication**: MQTT
+* **Realtime**: Socket.IO
+* **Auth**: JWT + bcrypt.js
+* **File Storage**: Supabase Storage
+* **Validation**: express-validator
+* **Containerization**: Docker & Docker Compose
+
+---
+
+## ⚙️ Prasyarat
 
 - [Node.js](https://nodejs.org/) (v18 atau lebih baru)
 - [NPM](https://www.npmjs.com/) atau [Yarn](https://yarnpkg.com/)
@@ -38,102 +83,156 @@ Sebelum memulai, pastikan Anda telah menginstal software berikut:
 - Akun [Supabase](https://supabase.com/) (untuk URL Database PostgreSQL dan Storage)
 - [Postman](https://www.postman.com/downloads/) (untuk pengujian API)
 
-## ⚙️ Instalasi & Konfigurasi (Installation & Setup)
+---
 
-Ikuti langkah-langkah berikut untuk menjalankan proyek ini di lingkungan lokal Anda.
+## 🚀 Instalasi & Pengaturan
 
-1.  **Clone Repositori**
+### 1. Clone Repository
 
-    ```bash
-    git clone [https://github.com/your-username/backend-dmouv.git](https://github.com/your-username/backend-dmouv.git)
-    cd backend-dmouv
-    ```
+```bash
+git clone https://github.com/asepjamaludinn/backend-dmouv.git
+cd backend-dmouv
+```
+```
 
-2.  **Install Dependensi**
+### 2. Install Dependensi
 
-    ```bash
-    npm install
-    ```
+```bash
+npm install
+```
 
-3.  **Konfigurasi Variabel Lingkungan**
+### 3. Konfigurasi `.env`
 
-    - Buat salinan dari file `.env.example` (jika ada) atau buat file baru bernama `.env`.
-    - Isi file `.env` dengan kredensial Anda. Lihat bagian **Variabel Lingkungan** di bawah untuk detailnya.
-
-4.  **Jalankan Migrasi Database**
-    - Pastikan `DATABASE_URL` di file `.env` Anda sudah benar.
-    - Jalankan perintah berikut untuk membuat tabel-tabel di database Anda sesuai dengan `schema.prisma`.
-    ```bash
-    npx prisma migrate dev --name init
-    ```
-
-## 📄 Variabel Lingkungan (`.env`)
-
-Berikut adalah template untuk file `.env` Anda. Ganti nilai placeholder dengan kredensial Anda yang sebenarnya.
+Buat file `.env` di root project berdasarkan `.env.example`.
+Contoh:
 
 ```env
-# URL Database dari Supabase (Connection Pooling)
-DATABASE_URL="postgresql://user:password@host:port/postgres?pgbouncer=true"
+DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?schema=public"
+DIRECT_URL="postgresql://postgres:[PASSWORD]@[HOST]:6543/postgres?schema=public"
 
-# URL Database dari Supabase (Direct Connection)
-DIRECT_URL="postgresql://user:password@host:port/postgres"
-
-# Port untuk server Express
-PORT=2000
-
-# Lingkungan Aplikasi (development atau production)
+PORT=3000
 NODE_ENV=development
 
-# Kunci Rahasia untuk Tanda Tangan JWT (buat string acak yang sangat panjang)
 JWT_SECRET="your_super_long_and_random_jwt_secret_key"
 JWT_EXPIRES_IN="24h"
 
-# Kredensial Supabase (untuk upload gambar profil)
 SUPABASE_URL="https://your_project_id.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 
-# Konfigurasi MQTT Broker
-# Jika menggunakan Docker, ini adalah nama service di docker-compose.yml
-MQTT_BROKER_URL="mqtt://mosquitto"
-MQTT_USERNAME=""
-MQTT_PASSWORD=""
+MQTT_BROKER="broker.emqx.io"
+MQTT_PORT=8883
+MQTT_USERNAME="your_mqtt_username"
+MQTT_PASSWORD="your_mqtt_password"
+
+SUPERUSER_EMAIL="superuser@example.com"
+SUPERUSER_PASSWORD="a_very_strong_password"
+
+FRONTEND_URL="http://localhost:8081"
+DATA_RETENTION_DAYS=30
 ```
 
-## 🚀 Menjalankan Aplikasi (Running the Application)
+### 4. Migrasi Database
 
-Anda bisa menjalankan aplikasi ini dengan dua cara:
+```bash
+npx prisma migrate dev --name init
+```
 
-1.  Menggunakan Docker (Direkomendasikan)
-    Ini adalah cara termudah karena sudah mencakup database (opsional) dan MQTT Broker. Pastikan Docker Desktop sedang berjalan.
+### 5. Seed Database
 
-        docker-compose up --build
-        Server akan berjalan di http://localhost:2000.
+```bash
+npx prisma db seed
+```
 
-2.  Mode Pengembangan Lokal
-    Jika Anda ingin menjalankan server secara langsung tanpa Docker, pastikan Anda memiliki instance PostgreSQL dan MQTT Broker yang berjalan secara terpisah di mesin Anda.
+---
 
-        Ubah MQTT_BROKER_URL di file .env Anda menjadi mqtt://localhost.`
+## 🚀 Menjalankan Aplikasi
 
-        npm run dev
+### Menggunakan Docker (Direkomendasikan)
 
-    Server akan berjalan di `http://localhost:2000.`
+```bash
+docker-compose up --build
+```
 
-## 🗂️ Struktur Proyek (Project Structure)
+Server: [http://localhost:3000](http://localhost:3000)
+
+### Mode Pengembangan Lokal
+
+Jalankan Node.js langsung:
+
+```bash
+npm run dev
+```
+
+---
+
+## 🗂️ Struktur Proyek
 
 ```
 ├── prisma/
-│ └── schema.prisma # Skema database
+│   ├── schema.prisma   # Skema database
+│   └── seed.js         # Script seed superuser
 ├── src/
-│ ├── config/ # Konfigurasi (database)
-│ ├── controllers/ # Logika untuk menangani request & response
-│ ├── middleware/ # Middleware (otentikasi)
-│ ├── routes/ # Definisi endpoint API
-│ ├── services/ # Logika bisnis inti
-│ └── utils/ # Utilitas (validasi)d
-├── .env # Variabel lingkungan
-├── app.js # Konfigurasi utama Express
-├── docker-compose.yml # Konfigurasi Docker
-├── Dockerfile # Definisi image Docker untuk aplikasi
-└── server.js # Titik masuk utama aplikasi
-
+│   ├── config/         # Konfigurasi database & server
+│   ├── controllers/    # Controller Express
+│   ├── middleware/     # Middleware (auth, role)
+│   ├── routes/         # Routing API
+│   ├── services/       # Logika bisnis
+│   └── utils/          # Helper & validasi
+├── .env.example        # Template env
+├── app.js              # Setup Express
+├── docker-compose.yml  # Service Docker
+├── Dockerfile          # Build image backend
+└── server.js           # Entry point
 ```
+
+---
+
+## 📖 Endpoint API
+
+<details>
+<summary>Klik untuk melihat daftar endpoint</summary>
+
+| Endpoint                                 | Method | Deskripsi                  | Akses     |
+| ---------------------------------------- | ------ | -------------------------- | --------- |
+| /api/auth/create-user                    | POST   | Membuat user baru          | Superuser |
+| /api/auth/login                          | POST   | Login & dapatkan JWT       | Publik    |
+| /api/auth/forgot-password                | POST   | Reset password             | Publik    |
+| /api/auth/profile                        | GET    | Profil user saat ini       | Pribadi   |
+| /api/auth/profile                        | PUT    | Update profil              | Pribadi   |
+| /api/auth/upload-profile-picture         | POST   | Upload avatar              | Pribadi   |
+| /api/device                              | GET    | List perangkat             | Pribadi   |
+| /api/device/onboarding                   | POST   | Registrasi perangkat baru  | Superuser |
+| /api/device/\:deviceId/action            | POST   | Kontrol manual perangkat   | Superuser |
+| /api/settings/\:deviceId                 | GET    | Ambil pengaturan perangkat | Pribadi   |
+| /api/settings/\:deviceId                 | PATCH  | Update pengaturan          | Superuser |
+| /api/settings/\:deviceId/schedules       | POST   | Tambah/ubah jadwal         | Superuser |
+| /api/settings/\:deviceId/schedules/\:day | DELETE | Hapus jadwal               | Superuser |
+| /api/sensorHistory                       | GET    | Riwayat sensor             | Pribadi   |
+| /api/notifications                       | GET    | Semua notifikasi           | Pribadi   |
+| /api/notifications/unread-count          | GET    | Jumlah notifikasi unread   | Pribadi   |
+| /api/notifications/mark-all-as-read      | POST   | Tandai semua sudah dibaca  | Pribadi   |
+| /api/notifications/\:id                  | DELETE | Hapus notifikasi tertentu  | Pribadi   |
+
+</details>
+
+---
+
+## 📡 Komunikasi MQTT & WebSocket
+
+### Topik MQTT
+
+* `iot/+/status` → subscribe status online/offline perangkat
+* `iot/+/sensor` → subscribe data sensor (motion\_detected, motion\_cleared)
+* `iot/{uniqueId}/action` → publish perintah (turn\_on, turn\_off)
+* `iot/{uniqueId}/settings/update` → publish update mode perangkat
+
+### Event Socket.IO
+
+* `new_notification` → notifikasi baru
+* `devices_updated` → status perangkat berubah
+* `device_added` → perangkat baru ditambahkan
+* `settings_updated` → perubahan pengaturan
+* `device_operational_status_updated` → perangkat ON/OFF
+* `motion_status_updated` → status gerakan terdeteksi
+
+---
